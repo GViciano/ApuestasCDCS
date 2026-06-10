@@ -15,6 +15,7 @@ export default function App() {
   const [displayName, setDisplayName] = useState('')
   const [tab, setTab] = useState('groups')
   const [group, setGroup] = useState('A')
+  const [viewMode, setViewMode] = useState('group') // 'group' | 'date'
   const [bets, setBets] = useState({})
   const [allBets, setAllBets] = useState({})   // bets de todos los usuarios, por match_id
   const [allProfiles, setAllProfiles] = useState({}) // id -> display_name
@@ -31,7 +32,7 @@ export default function App() {
   }
 
   useEffect(() => { loadConfig() }, [])
-  useEffect(() => { if (user) loadGroupData() }, [user, group])
+  useEffect(() => { if (user) { viewMode === 'date' ? loadAllMatches() : loadGroupData() } }, [user, group, viewMode])
 
   const loadConfig = async () => {
     const { data } = await supabase.from('config').select('*').eq('key','points').single()
@@ -85,6 +86,46 @@ export default function App() {
       setLoading(false)
     }
   }
+
+  const loadAllMatches = async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const allMatchIds = Object.values(GROUPS).flatMap(g => g.matches.map(m => m.id))
+
+      const [betsRes, resultsRes, allBetsRes, profilesRes] = await Promise.all([
+        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', allMatchIds),
+        supabase.from('results').select('*').in('match_id', allMatchIds),
+        supabase.from('bets').select('*').in('match_id', allMatchIds),
+        supabase.from('profiles').select('id, username, display_name').eq('is_admin', false),
+      ])
+
+      const errs = [betsRes, resultsRes, allBetsRes, profilesRes].map(r => r.error?.message).filter(Boolean)
+      if (errs.length) throw new Error(errs[0])
+
+      const betsMap = {}
+      betsRes.data?.forEach(b => { betsMap[b.match_id] = b })
+      const resMap = {}
+      resultsRes.data?.forEach(r => { resMap[r.match_id] = r })
+      const allBetsMap = {}
+      allBetsRes.data?.forEach(b => {
+        if (!allBetsMap[b.match_id]) allBetsMap[b.match_id] = []
+        allBetsMap[b.match_id].push(b)
+      })
+      const profilesMap = {}
+      profilesRes.data?.forEach(p => { profilesMap[p.id] = p.display_name || p.username })
+
+      setBets(betsMap)
+      setResults(resMap)
+      setAllBets(allBetsMap)
+      setAllProfiles(profilesMap)
+    } catch (err) {
+      setLoadError(err.message || 'Error al cargar los datos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
 
   const handleLogin = (u) => {
     const normalized = { ...u, is_admin: u.is_admin === true || u.is_admin === 'true' }
@@ -163,45 +204,75 @@ export default function App() {
       <div style={{flex:1,padding:20,maxWidth:800,margin:'0 auto',width:'100%'}}>
         {tab === 'groups' && (
           <>
-            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
-              {Object.keys(GROUPS).map(g => {
-                const hasBets = !user.is_admin && GROUPS[g].matches.some(m => bets[m.id])
-                return (
-                  <button key={g} onClick={()=>setGroup(g)}
-                    style={{padding:'6px 14px',borderRadius:8,position:'relative',transition:'all .15s',cursor:'pointer',fontFamily:'var(--font-b)',fontWeight:500,fontSize:13,
-                      border:`1px solid ${group===g?'var(--accent)':'var(--border)'}`,
-                      background:group===g?'rgba(245,166,35,.1)':'var(--bg2)',
-                      color:group===g?'var(--accent)':'var(--text2)'}}>
-                    Grupo {g}
-                    {hasBets && <span style={{position:'absolute',top:-4,right:-4,width:8,height:8,background:'var(--green)',borderRadius:'50%'}}/>}
-                  </button>
-                )
-              })}
-            </div>
-            <div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:14,alignItems:'center'}}>
-              {GROUPS[group].teams.map(t => (
-                <span key={t} style={{fontSize:13,color:'var(--text2)',display:'flex',alignItems:'center',gap:6}}>
-                  <Flag team={t} size={20}/> {t}
-                </span>
+            {/* Toggle grupo / fecha */}
+            <div style={{display:'flex',gap:8,marginBottom:14}}>
+              {[['group','📋 Por grupo'],['date','📅 Por fecha']].map(([mode,label]) => (
+                <button key={mode} onClick={()=>setViewMode(mode)}
+                  style={{padding:'6px 16px',borderRadius:8,cursor:'pointer',fontFamily:'var(--font-b)',fontWeight:500,fontSize:13,transition:'all .15s',
+                    border:`1px solid ${viewMode===mode?'var(--accent)':'var(--border)'}`,
+                    background:viewMode===mode?'rgba(245,166,35,.1)':'var(--bg2)',
+                    color:viewMode===mode?'var(--accent)':'var(--text2)'}}>
+                  {label}
+                </button>
               ))}
             </div>
+
+            {viewMode === 'group' && (
+              <>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
+                  {Object.keys(GROUPS).map(g => {
+                    const hasBets = !user.is_admin && GROUPS[g].matches.some(m => bets[m.id])
+                    return (
+                      <button key={g} onClick={()=>setGroup(g)}
+                        style={{padding:'6px 14px',borderRadius:8,position:'relative',transition:'all .15s',cursor:'pointer',fontFamily:'var(--font-b)',fontWeight:500,fontSize:13,
+                          border:`1px solid ${group===g?'var(--accent)':'var(--border)'}`,
+                          background:group===g?'rgba(245,166,35,.1)':'var(--bg2)',
+                          color:group===g?'var(--accent)':'var(--text2)'}}>
+                        Grupo {g}
+                        {hasBets && <span style={{position:'absolute',top:-4,right:-4,width:8,height:8,background:'var(--green)',borderRadius:'50%'}}/>}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:14,alignItems:'center'}}>
+                  {GROUPS[group].teams.map(t => (
+                    <span key={t} style={{fontSize:13,color:'var(--text2)',display:'flex',alignItems:'center',gap:6}}>
+                      <Flag team={t} size={20}/> {t}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+
             {loadError
               ? <div style={{color:'var(--red)',fontSize:13,padding:'20px',background:'rgba(239,68,68,.1)',borderRadius:8}}>
                   ⚠️ Error: {loadError}
-                  <button onClick={()=>{setLoadError('');loadGroupData()}}
+                  <button onClick={()=>{setLoadError(''); viewMode==='date'?loadAllMatches():loadGroupData()}}
                     style={{marginLeft:12,fontSize:12,color:'var(--accent)',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
                     Reintentar
                   </button>
                 </div>
               : loading
               ? <div style={{color:'var(--text3)',textAlign:'center',padding:40}}>Cargando…</div>
-              : GROUPS[group].matches.map(m => (
-                <MatchCard key={m.id} match={m} user={user}
-                  myBet={bets[m.id]} result={results[m.id]}
-                  allBets={allBets[m.id] || []}
-                  allProfiles={allProfiles}
-                  points={points} onBetSaved={loadGroupData} onResultSaved={loadGroupData}/>
-              ))
+              : viewMode === 'group'
+              ? GROUPS[group].matches.map(m => (
+                  <MatchCard key={m.id} match={m} user={user}
+                    myBet={bets[m.id]} result={results[m.id]}
+                    allBets={allBets[m.id] || []}
+                    allProfiles={allProfiles}
+                    points={points} onBetSaved={loadGroupData} onResultSaved={loadGroupData}/>
+                ))
+              : (() => {
+                  const allMatches = Object.values(GROUPS).flatMap(g => g.matches)
+                  allMatches.sort((a,b) => new Date(a.date) - new Date(b.date))
+                  return allMatches.map(m => (
+                    <MatchCard key={m.id} match={m} user={user}
+                      myBet={bets[m.id]} result={results[m.id]}
+                      allBets={allBets[m.id] || []}
+                      allProfiles={allProfiles}
+                      points={points} onBetSaved={loadAllMatches} onResultSaved={loadAllMatches}/>
+                  ))
+                })()
             }
           </>
         )}
