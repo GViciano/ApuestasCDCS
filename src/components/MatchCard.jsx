@@ -82,13 +82,14 @@ export default function MatchCard({ match, user, myBet, result, allBets, allProf
   }, [result])
 
   const saveBet = async () => {
-    if (homeG === '' || awayG === '') return
+    if (homeG === '' && awayG === '') return  // ambos vacíos = no hacer nada
     setSaving(true)
     const payload = {
       user_id: user.id, match_id: match.id,
-      home_goals: +homeG, away_goals: +awayG,
+      home_goals: homeG === '' ? 0 : +homeG,
+      away_goals: awayG === '' ? 0 : +awayG,
       scorer: scorer || null,
-      minute: minute || null,  // keep as string, no + conversion
+      minute: minute || null,
     }
     if (myBet?.id) await supabase.from('bets').update(payload).eq('id', myBet.id)
     else await supabase.from('bets').insert(payload)
@@ -213,8 +214,13 @@ export default function MatchCard({ match, user, myBet, result, allBets, allProf
                 </div>
               </div>
               <button style={saved ? s.btnSaved : s.btnPrimary} onClick={saveBet} disabled={saving}>
-                {saving ? 'Guardando…' : saved ? '✓ Guardada' : 'Guardar apuesta'}
+                {saving ? 'Guardando…' : saved ? '✓ Guardada' : myBet ? 'Actualizar apuesta' : 'Guardar apuesta'}
               </button>
+              {myBet && !saved && (
+                <div style={{textAlign:'center',marginTop:6,fontSize:12,color:'var(--green)'}}>
+                  ✓ Apuesta guardada
+                </div>
+              )}
             </>
           )}
 
