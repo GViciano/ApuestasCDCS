@@ -208,8 +208,8 @@ export const GROUPS = {
       {phase:'group',id:"F2",home:"Suecia",       away:"Túnez",        date:"2026-06-15T02:00"},
       {phase:'group',id:"F3",home:"Japón",        away:"Túnez",        date:"2026-06-20T21:00"},
       {phase:'group',id:"F4",home:"Países Bajos", away:"Suecia",       date:"2026-06-21T03:00"},
-      {phase:'group',id:"F5",home:"Japón",        away:"Países Bajos", date:"2026-06-26T00:00"},
-      {phase:'group',id:"F6",home:"Túnez",        away:"Suecia",       date:"2026-06-26T00:00"},
+      {phase:'group',id:"F5",home:"Países Bajos",away:"Túnez",  date:"2026-06-26T00:00"},
+      {phase:'group',id:"F6",home:"Suecia",       away:"Japón", date:"2026-06-26T00:00"},
     ]
   },
   G: {
