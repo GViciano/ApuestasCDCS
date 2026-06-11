@@ -5,12 +5,24 @@ import Flag from './Flag.jsx'
 
 const ALL_TEAMS = Object.keys(FLAGS).sort((a, b) => a.localeCompare(b))
 
-// Deadline: predictions lock when the tournament starts (first match)
-const TOURNAMENT_START = new Date('2026-06-11T17:00:00')
+// Deadline per group: 1 minute before the first match of that group
+const isGroupPredictionOpen = (groupId) => {
+  const grp = GROUPS[groupId]
+  if (!grp) return false
+  const firstMatch = grp.matches.reduce((a, b) => new Date(a.date) < new Date(b.date) ? a : b)
+  return new Date() < new Date(new Date(firstMatch.date).getTime() - 60000)
+}
+
+// For semis/final/champion: 1 minute before first match of tournament
+const FIRST_MATCH_DATE = Object.values(GROUPS)
+  .flatMap(g => g.matches)
+  .reduce((a, b) => new Date(a.date) < new Date(b.date) ? a : b).date
+const TOURNAMENT_START = new Date(new Date(FIRST_MATCH_DATE).getTime() - 60000)
 const isPredictionOpen = () => new Date() < TOURNAMENT_START
 
-function timeLeftStr() {
-  const diff = TOURNAMENT_START - new Date()
+function timeLeftStr(deadline) {
+  const d = deadline || TOURNAMENT_START
+  const diff = d - new Date()
   if (diff <= 0) return null
   const days = Math.floor(diff / 86400000)
   const hrs = Math.floor((diff % 86400000) / 3600000)
@@ -255,7 +267,8 @@ function GroupQualifiers({ isAdmin, open, myPredictions, saving, saved, onSave, 
   )
 }
 
-function GroupQualifierCard({ group, teams, current, open, saving, saved, onSave, real, isAdmin, onReload, points }) {
+function GroupQualifierCard({ group, teams, current, open: _open, saving, saved, onSave, real, isAdmin, onReload, points }) {
+  const open = isGroupPredictionOpen(group)  // per-group deadline
   const [sel1, setSel1] = useState(current[0] || '')
   const [sel2, setSel2] = useState(current[1] || '')
   const [adminSel1, setAdminSel1] = useState(real[0] || '')
