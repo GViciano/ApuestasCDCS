@@ -264,8 +264,12 @@ export default function App() {
                 ))
               : (() => {
                   const allMatches = Object.values(GROUPS).flatMap(g => g.matches)
-                  allMatches.sort((a,b) => new Date(a.date) - new Date(b.date))
-                  return allMatches.map(m => (
+                  const now = new Date()
+                  const pending = allMatches.filter(m => !results[m.id] || results[m.id].home_goals === undefined)
+                  const played = allMatches.filter(m => results[m.id] && results[m.id].home_goals !== undefined)
+                  pending.sort((a,b) => new Date(a.date) - new Date(b.date))
+                  played.sort((a,b) => new Date(a.date) - new Date(b.date))
+                  return [...pending, ...played].map(m => (
                     <MatchCard key={m.id} match={m} user={user}
                       myBet={bets[m.id]} result={results[m.id]}
                       allBets={allBets[m.id] || []}
@@ -281,7 +285,7 @@ export default function App() {
 
         {tab === 'predictions' && <Predictions user={user} points={points}/>}
 
-        {tab === 'ranking' && <Ranking key={rankingKey} points={points}/>}
+        {tab === 'ranking' && <Ranking key={rankingKey} points={points} currentUser={user}/>}
 
         {tab === 'settings' && (
           <Settings

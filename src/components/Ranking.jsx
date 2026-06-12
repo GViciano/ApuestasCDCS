@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
 import { GROUPS, calcPointsBreakdown } from '../data.js'
 
-export default function Ranking({ points }) {
+export default function Ranking({ points, currentUser }) {
   const [scores, setScores] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -43,6 +43,7 @@ export default function Ranking({ points }) {
 
     const scores = (profiles || []).map(u => {
       let total=0, exactPts=0, signPts=0, scorerPts=0, minutePts=0, qualPts=0, koPredPts=0, placed=0
+      let exactN=0, signN=0, scorerN=0, minuteN=0
 
       // Match bets
       const userBets = (bets||[]).filter(b => b.user_id===u.id)
@@ -54,6 +55,10 @@ export default function Ranking({ points }) {
         if (!bd) return
         exactPts+=bd.exact; signPts+=bd.sign; scorerPts+=bd.scorer; minutePts+=bd.minute
         total+=bd.exact+bd.sign+bd.scorer+bd.minute
+        if (bd.exact>0) exactN++
+        if (bd.sign>0) signN++
+        if (bd.scorer>0) scorerN++
+        if (bd.minute>0) minuteN++
       })
 
       // Qualifier predictions — position-aware scoring using extra='A_1','A_2' format
@@ -97,7 +102,7 @@ export default function Ranking({ points }) {
       const displayName = (u.display_name && u.display_name !== u.username)
         ? u.display_name
         : u.username.includes('@') ? '(sin nombre)' : u.username
-      return { username:u.username, displayName, total, exactPts, signPts, scorerPts, minutePts, qualPts, koPredPts, placed }
+      return { username:u.username, displayName, total, exactPts, signPts, scorerPts, minutePts, qualPts, koPredPts, placed, exactN, signN, scorerN, minuteN }
     }).sort((a,b) => b.total-a.total)
 
     setScores(scores)
@@ -113,24 +118,27 @@ export default function Ranking({ points }) {
       : scores.length===0 ? <div style={{color:'var(--text3)',textAlign:'center',padding:40}}>Sin participantes aún</div>
       : (
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {scores.map((s,i) => (
+          {scores.map((s,i) => {
+            const isMe = currentUser && s.username === currentUser.username
+            return (
             <div key={s.username} style={{display:'grid',gridTemplateColumns:'36px 1fr auto',gap:12,alignItems:'center',
-              background:i===0?'rgba(245,166,35,.08)':'var(--bg2)',
-              border:`1px solid ${i===0?'rgba(245,166,35,.3)':'var(--border)'}`,
+              background: isMe ? 'rgba(99,179,237,.12)' : i===0 ? 'rgba(245,166,35,.08)' : 'var(--bg2)',
+              border:`1px solid ${isMe ? 'rgba(99,179,237,.5)' : i===0?'rgba(245,166,35,.3)':'var(--border)'}`,
               borderRadius:10,padding:'12px 16px'}}>
               <div style={{fontFamily:'var(--font-d)',fontSize:24,color:i<3?'var(--accent)':'var(--text3)',textAlign:'center'}}>
                 {i<3?medals[i]:i+1}
               </div>
               <div>
-                <div style={{fontWeight:500,fontSize:14}}>{s.displayName}</div>
+                <div style={{fontWeight:500,fontSize:14,display:'flex',alignItems:'center',gap:6}}>
+                  {s.displayName}
+                </div>
                 <div style={{fontSize:11,color:'var(--text3)',marginTop:3,display:'flex',gap:8,flexWrap:'wrap'}}>
-                  <span>🎯 {s.exactPts} exacto</span>
-                  <span>✅ {s.signPts} ganador</span>
-                  <span>⚽ {s.scorerPts} goleador</span>
-                  <span>🕐 {s.minutePts} minuto</span>
-                  {s.qualPts > 0 && <span>🏟 {s.qualPts} clasif.</span>}
-                  {s.koPredPts > 0 && <span>🏆 {s.koPredPts} pred.</span>}
-                  <span style={{color:'var(--text3)'}}>{s.placed} apuestas</span>
+                  {s.exactN>0 && <span>🎯 {s.exactN}×exacto <span style={{color:'var(--accent)'}}>+{s.exactPts+s.exactN*points.sign}pts</span></span>}
+                  {(s.signN-s.exactN)>0 && <span>✅ {s.signN-s.exactN}×ganador <span style={{color:'var(--accent)'}}>+{(s.signN-s.exactN)*points.sign}pts</span></span>}
+                  {s.scorerN>0 && <span>⚽ {s.scorerN}×goleador <span style={{color:'var(--accent)'}}>+{s.scorerPts}pts</span></span>}
+                  {s.minuteN>0 && <span>🕐 {s.minuteN}×minuto <span style={{color:'var(--accent)'}}>+{s.minutePts}pts</span></span>}
+                  {s.qualPts > 0 && <span>🏟 <span style={{color:'var(--accent)'}}>+{s.qualPts}pts</span> clasif.</span>}
+                  {s.koPredPts > 0 && <span>🏆 <span style={{color:'var(--accent)'}}>+{s.koPredPts}pts</span> pred.</span>}
                 </div>
               </div>
               <div style={{textAlign:'right'}}>
@@ -138,7 +146,8 @@ export default function Ranking({ points }) {
                 <div style={{fontSize:11,color:'var(--text3)'}}>pts</div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
