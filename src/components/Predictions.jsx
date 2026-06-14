@@ -53,7 +53,11 @@ export default function Predictions({ user, points }) {
 
   useEffect(() => { load() }, [])
 
-  const [realQualifiers, setRealQualifiers] = useState({})\n  const [realPredResults, setRealPredResults] = useState({}) // { semifinal:[...], finalist:[...], champion:[...] }\n  const [matchResults, setMatchResults] = useState({}) // matchId -> result\n\n  const load = async () => {
+  const [realQualifiers, setRealQualifiers] = useState({})
+  const [realPredResults, setRealPredResults] = useState({}) // { semifinal:[...], finalist:[...], champion:[...] }
+  const [matchResults, setMatchResults] = useState({}) // matchId -> result
+
+  const load = async () => {
     setLoading(true)
     setLoadError('')
     try {

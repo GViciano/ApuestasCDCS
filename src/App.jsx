@@ -16,6 +16,7 @@ export default function App() {
   const [tab, setTab] = useState('groups')
   const [group, setGroup] = useState('A')
   const [viewMode, setViewMode] = useState('group') // 'group' | 'date'
+  const [dateSection, setDateSection] = useState('pending') // 'pending' | 'played'
   const [bets, setBets] = useState({})
   const [allBets, setAllBets] = useState({})   // bets de todos los usuarios, por match_id
   const [allProfiles, setAllProfiles] = useState({}) // id -> display_name
@@ -264,18 +265,32 @@ export default function App() {
                 ))
               : (() => {
                   const allMatches = Object.values(GROUPS).flatMap(g => g.matches)
-                  const now = new Date()
                   const pending = allMatches.filter(m => !results[m.id] || results[m.id].home_goals === undefined)
                   const played = allMatches.filter(m => results[m.id] && results[m.id].home_goals !== undefined)
                   pending.sort((a,b) => new Date(a.date) - new Date(b.date))
-                  played.sort((a,b) => new Date(a.date) - new Date(b.date))
-                  return [...pending, ...played].map(m => (
-                    <MatchCard key={m.id} match={m} user={user}
-                      myBet={bets[m.id]} result={results[m.id]}
-                      allBets={allBets[m.id] || []}
-                      allProfiles={allProfiles}
-                      points={points} onBetSaved={loadAllMatches} onResultSaved={loadAllMatches}/>
-                  ))
+                  played.sort((a,b) => new Date(b.date) - new Date(a.date)) // inverso
+                  return (
+                    <>
+                      <div style={{display:'flex',gap:8,marginBottom:14}}>
+                        {[['pending',`⏳ Por jugar (${pending.length})`],['played',`✅ Ya jugados (${played.length})`]].map(([mode,label]) => (
+                          <button key={mode} onClick={()=>setDateSection(mode)}
+                            style={{padding:'6px 14px',borderRadius:8,cursor:'pointer',fontFamily:'var(--font-b)',fontWeight:500,fontSize:13,transition:'all .15s',
+                              border:`1px solid ${dateSection===mode?'var(--accent)':'var(--border)'}`,
+                              background:dateSection===mode?'rgba(245,166,35,.1)':'var(--bg2)',
+                              color:dateSection===mode?'var(--accent)':'var(--text2)'}}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {(dateSection==='pending' ? pending : played).map(m => (
+                        <MatchCard key={m.id} match={m} user={user}
+                          myBet={bets[m.id]} result={results[m.id]}
+                          allBets={allBets[m.id] || []}
+                          allProfiles={allProfiles}
+                          points={points} onBetSaved={loadAllMatches} onResultSaved={loadAllMatches}/>
+                      ))}
+                    </>
+                  )
                 })()
             }
           </>
