@@ -53,24 +53,24 @@ export default function Predictions({ user, points }) {
 
   useEffect(() => { load() }, [])
 
-  const [realQualifiers, setRealQualifiers] = useState({})
-  const [realPredResults, setRealPredResults] = useState({}) // { semifinal:[...], finalist:[...], champion:[...] }
-
-  const load = async () => {
+  const [realQualifiers, setRealQualifiers] = useState({})\n  const [realPredResults, setRealPredResults] = useState({}) // { semifinal:[...], finalist:[...], champion:[...] }\n  const [matchResults, setMatchResults] = useState({}) // matchId -> result\n\n  const load = async () => {
     setLoading(true)
     setLoadError('')
     try {
-      const [myRes, allRes, profRes, qualRes, predResRes] = await Promise.all([
+      const [myRes, allRes, profRes, qualRes, predResRes, resultsRes] = await Promise.all([
         supabase.from('predictions').select('*').eq('user_id', user.id),
         supabase.from('predictions').select('*'),
         supabase.from('profiles').select('id, username, display_name').eq('is_admin', false),
         supabase.from('group_qualifiers').select('*'),
         supabase.from('prediction_results').select('*'),
+        supabase.from('results').select('match_id'),
       ])
 
-      // Check for errors
-      const errors = [myRes, allRes, profRes, qualRes, predResRes].map(r => r.error?.message).filter(Boolean)
+      const errors = [myRes, allRes, profRes, qualRes, predResRes, resultsRes].map(r => r.error?.message).filter(Boolean)
       if (errors.length) throw new Error(errors[0])
+
+      const playedMatchIds = new Set((resultsRes.data || []).map(r => r.match_id))
+      setMatchResults(playedMatchIds)
 
       const map = {}
       myRes.data?.forEach(p => {
@@ -208,7 +208,9 @@ export default function Predictions({ user, points }) {
       {tab === 'groups' && (
         <GroupQualifiers isAdmin={isAdmin} open={open} myPredictions={myPredictions}
           saving={saving} saved={saved} onSave={savePrediction} points={points}
-          realQualifiers={realQualifiers} onReload={load} />
+          realQualifiers={realQualifiers} onReload={load}
+          allPredictions={allPredictions} profiles={profiles}
+          playedMatchIds={matchResults} myUserId={user.id} />
       )}
       {tab === 'knockouts' && (
         <KnockoutPredictions isAdmin={isAdmin} open={open} myPredictions={myPredictions}
@@ -237,7 +239,7 @@ export default function Predictions({ user, points }) {
 }
 
 // ── Group Qualifiers ──────────────────────────────────────────────────────────
-function GroupQualifiers({ isAdmin, open, myPredictions, saving, saved, onSave, points, realQualifiers, onReload }) {
+function GroupQualifiers({ isAdmin, open, myPredictions, saving, saved, onSave, points, realQualifiers, onReload, allPredictions, profiles, playedMatchIds, myUserId }) {
   return (
     <div>
       <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:13 }}>
@@ -254,12 +256,20 @@ function GroupQualifiers({ isAdmin, open, myPredictions, saving, saved, onSave, 
           const key = `qualifier_${g}`
           const current = myPredictions[key] || []
           const real = realQualifiers[g] || []
+          const groupHasStarted = GROUPS[g].matches.some(m => playedMatchIds?.has(m.id))
+          const otherPreds = (allPredictions || []).filter(p =>
+            p.prediction_type === 'group_qualifier' &&
+            p.extra?.startsWith(`${g}_`) &&
+            p.user_id !== myUserId
+          )
           return (
             <GroupQualifierCard key={g} group={g} teams={teams} current={current}
               open={open} saving={saving[key]} saved={saved[key]}
               real={real} isAdmin={isAdmin} onReload={onReload}
               onSave={(vals) => onSave('group_qualifier', g, vals)}
-              points={points} />
+              points={points}
+              groupHasStarted={groupHasStarted}
+              otherPreds={otherPreds} profiles={profiles} myUserId={myUserId} />
           )
         })}
       </div>
@@ -267,8 +277,8 @@ function GroupQualifiers({ isAdmin, open, myPredictions, saving, saved, onSave, 
   )
 }
 
-function GroupQualifierCard({ group, teams, current, open: _open, saving, saved, onSave, real, isAdmin, onReload, points }) {
-  const open = isGroupPredictionOpen(group)  // per-group deadline
+function GroupQualifierCard({ group, teams, current, open: _open, saving, saved, onSave, real, isAdmin, onReload, points, groupHasStarted, otherPreds, profiles, myUserId }) {
+  const open = isGroupPredictionOpen(group)
   const [sel1, setSel1] = useState(current[0] || '')
   const [sel2, setSel2] = useState(current[1] || '')
   const [adminSel1, setAdminSel1] = useState(real[0] || '')
@@ -491,6 +501,36 @@ function GroupQualifierCard({ group, teams, current, open: _open, saving, saved,
           )}
         </div>
       )}
+
+      {/* Predicciones de otros jugadores — visible cuando el grupo ha empezado */}
+      {groupHasStarted && otherPreds && otherPreds.length > 0 && (() => {
+        // Group by user
+        const byUser = {}
+        otherPreds.forEach(p => {
+          if (!byUser[p.user_id]) byUser[p.user_id] = {}
+          const pos = p.extra?.endsWith('_1') ? 0 : 1
+          byUser[p.user_id][pos] = p.value
+        })
+        const users = Object.entries(byUser)
+        if (users.length === 0) return null
+        return (
+          <div style={{ marginTop:10, borderTop:'1px solid var(--border)', paddingTop:10 }}>
+            <div style={{ fontSize:11, color:'var(--text3)', marginBottom:6, fontWeight:500 }}>Predicciones del resto</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              {users.map(([uid, preds]) => {
+                const name = profiles?.[uid] || '?'
+                return (
+                  <div key={uid} style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, color:'var(--text2)' }}>
+                    <span style={{ minWidth:90, fontWeight:500 }}>{name}</span>
+                    <span>1º <strong>{preds[0] || '—'}</strong></span>
+                    <span>2º <strong>{preds[1] || '—'}</strong></span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

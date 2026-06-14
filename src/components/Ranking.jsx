@@ -120,6 +120,11 @@ export default function Ranking({ points, currentUser }) {
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           {scores.map((s,i) => {
             const isMe = currentUser && s.username === currentUser.username
+            const prize = i===0 ? {label:'🍽 Comida free',color:'rgba(72,187,120,1)',bg:'rgba(72,187,120,.12)'}
+                        : i<=2  ? {label:'🍹 Cubata free',color:'rgba(99,179,237,1)',bg:'rgba(99,179,237,.12)'}
+                        : i<=5  ? {label:'😬 Paga comida',color:'rgba(245,166,35,1)',bg:'rgba(245,166,35,.1)'}
+                        : i<=7  ? {label:'💸 Paga comida y cubata',color:'rgba(239,68,68,1)',bg:'rgba(239,68,68,.1)'}
+                        : null
             return (
             <div key={s.username} style={{display:'grid',gridTemplateColumns:'36px 1fr auto',gap:12,alignItems:'center',
               background: isMe ? 'rgba(99,179,237,.12)' : i===0 ? 'rgba(245,166,35,.08)' : 'var(--bg2)',
@@ -129,8 +134,9 @@ export default function Ranking({ points, currentUser }) {
                 {i<3?medals[i]:i+1}
               </div>
               <div>
-                <div style={{fontWeight:500,fontSize:14,display:'flex',alignItems:'center',gap:6}}>
+                <div style={{fontWeight:500,fontSize:14,display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
                   {s.displayName}
+                  {prize && <span style={{fontSize:10,background:prize.bg,color:prize.color,padding:'2px 7px',borderRadius:6,fontWeight:600}}>{prize.label}</span>}
                 </div>
                 <div style={{fontSize:11,color:'var(--text3)',marginTop:3,display:'flex',gap:8,flexWrap:'wrap'}}>
                   {s.exactN>0 && <span>🎯 {s.exactN}×exacto <span style={{color:'var(--accent)'}}>+{s.exactPts+s.exactN*points.sign}pts</span></span>}
