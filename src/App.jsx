@@ -67,7 +67,7 @@ export default function App() {
       resultsRes.data?.forEach(r => { resMap[r.match_id] = r })
 
       const allBetsMap = {}
-      allBetsData.forEach(b => {
+      allBetsRes.data?.forEach(b => {
         if (!allBetsMap[b.match_id]) allBetsMap[b.match_id] = []
         allBetsMap[b.match_id].push(b)
       })
