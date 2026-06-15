@@ -49,9 +49,9 @@ export default function App() {
       if (!matchIds.length) { setLoading(false); return }
 
       const [betsRes, resultsRes, allBetsRes, profilesRes] = await Promise.all([
-        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', matchIds),
+        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', matchIds).limit(5000),
         supabase.from('results').select('*').in('match_id', matchIds),
-        supabase.from('bets').select('*').in('match_id', matchIds),
+        supabase.from('bets').select('*').in('match_id', matchIds).limit(5000),
         supabase.from('profiles').select('id, username, display_name').eq('is_admin', false),
       ])
 
@@ -96,9 +96,9 @@ export default function App() {
       const allMatchIds = Object.values(GROUPS).flatMap(g => g.matches.map(m => m.id))
 
       const [betsRes, resultsRes, allBetsRes, profilesRes] = await Promise.all([
-        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', allMatchIds),
+        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', allMatchIds).limit(5000),
         supabase.from('results').select('*').in('match_id', allMatchIds),
-        supabase.from('bets').select('*').in('match_id', allMatchIds),
+        supabase.from('bets').select('*').in('match_id', allMatchIds).limit(5000),
         supabase.from('profiles').select('id, username, display_name').eq('is_admin', false),
       ])
 

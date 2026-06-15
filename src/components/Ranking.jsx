@@ -18,14 +18,16 @@ export default function Ranking({ points, currentUser }) {
     ]
     const [{ data: profiles }, { data: bets }, { data: results }, { data: predictions }, { data: realQuals }, { data: predResults }] = await Promise.all([
       supabase.from('profiles').select('*').eq('is_admin', false),
-      supabase.from('bets').select('*'),
-      supabase.from('results').select('*'),
+      supabase.from('bets').select('*').limit(5000),
+      supabase.from('results').select('*').limit(5000),
       supabase.from('predictions').select('*'),
       supabase.from('group_qualifiers').select('*'),
       supabase.from('prediction_results').select('*'),
     ])
     const resultsMap = {}
     results?.forEach(r => { resultsMap[r.match_id] = r })
+    console.log('[Ranking] results loaded:', Object.keys(resultsMap))
+    console.log('[Ranking] bets loaded:', bets?.length, 'total')
 
     // Real qualifiers map: { 'A': ['1st', '2nd', '3rd?'] } — sorted by position
     const realQualMap = {}
