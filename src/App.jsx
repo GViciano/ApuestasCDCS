@@ -17,6 +17,7 @@ export default function App() {
   const [group, setGroup] = useState('A')
   const [viewMode, setViewMode] = useState('group') // 'group' | 'date'
   const [dateSection, setDateSection] = useState('pending') // 'pending' | 'played'
+  const [menuOpen, setMenuOpen] = useState(false)
   const [bets, setBets] = useState({})
   const [allBets, setAllBets] = useState({})   // bets de todos los usuarios, por match_id
   const [allProfiles, setAllProfiles] = useState({}) // id -> display_name
@@ -175,34 +176,54 @@ export default function App() {
           onSkip={() => setShowNameModal(false)}
         />
       )}
+
       {/* Header */}
-      <div style={{background:'var(--bg2)',borderBottom:'1px solid var(--border)',padding:'12px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:100}}>
-        <div style={{fontFamily:'var(--font-d)',fontSize:22,letterSpacing:2,color:'var(--accent)'}}>⚽ MUNDIAL 2026</div>
-        <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+      <div style={{background:'var(--bg2)',borderBottom:'1px solid var(--border)',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:200}}>
+        <button onClick={()=>setMenuOpen(o=>!o)}
+          style={{background:'transparent',border:'none',cursor:'pointer',padding:6,display:'flex',flexDirection:'column',gap:5,flexShrink:0}}>
+          <span style={{display:'block',width:22,height:2,background:'var(--text)',borderRadius:2,transition:'all .2s',
+            transform:menuOpen?'translateY(7px) rotate(45deg)':'none'}}/>
+          <span style={{display:'block',width:22,height:2,background:'var(--text)',borderRadius:2,transition:'all .2s',
+            opacity:menuOpen?0:1}}/>
+          <span style={{display:'block',width:22,height:2,background:'var(--text)',borderRadius:2,transition:'all .2s',
+            transform:menuOpen?'translateY(-7px) rotate(-45deg)':'none'}}/>
+        </button>
+        <div style={{fontFamily:'var(--font-d)',fontSize:20,letterSpacing:2,color:'var(--accent)'}}>⚽ MUNDIAL 2026</div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
           {user.is_admin && <span style={{fontSize:11,background:'rgba(245,166,35,.2)',color:'var(--accent)',padding:'2px 7px',borderRadius:4,fontWeight:500}}>ADMIN</span>}
-          <span style={{fontSize:13,color:'var(--text2)'}}>👤 {displayName}</span>
           <button onClick={()=>{ setUser(null); setDisplayName('') }}
-            style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',borderRadius:7,padding:'5px 12px',fontSize:13,cursor:'pointer',fontFamily:'var(--font-b)'}}>
+            style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',borderRadius:7,padding:'5px 10px',fontSize:13,cursor:'pointer',fontFamily:'var(--font-b)'}}>
             Salir
           </button>
         </div>
       </div>
 
-      {/* Nav */}
-      <div style={{background:'var(--bg2)',borderBottom:'1px solid var(--border)',display:'flex',padding:'0 16px',overflowX:'auto'}}>
-        {navItems.map(n => (
-          <button key={n.id} onClick={()=>switchTab(n.id)}
-            style={{padding:'11px 18px',border:'none',background:'transparent',
-              color:tab===n.id?'var(--accent)':'var(--text2)',
-              borderBottom:tab===n.id?'2px solid var(--accent)':'2px solid transparent',
-              fontWeight:500,fontSize:14,cursor:'pointer',fontFamily:'var(--font-b)',whiteSpace:'nowrap',transition:'all .15s'}}>
-            {n.label}
-          </button>
-        ))}
-      </div>
+      {/* Drawer */}
+      {menuOpen && (
+        <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',zIndex:190,background:'rgba(0,0,0,.4)'}}
+          onClick={()=>setMenuOpen(false)}>
+          <div style={{position:'absolute',top:0,left:0,width:240,height:'100vh',
+            background:'var(--bg2)',borderRight:'1px solid var(--border)',
+            boxShadow:'4px 0 20px rgba(0,0,0,.3)',display:'flex',flexDirection:'column',paddingTop:58}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{padding:'10px 20px',fontSize:13,color:'var(--text2)',borderBottom:'1px solid var(--border)'}}>👤 {displayName}</div>
+            {navItems.map(n => (
+              <button key={n.id} onClick={()=>{ switchTab(n.id); setMenuOpen(false) }}
+                style={{padding:'14px 20px',border:'none',background:tab===n.id?'rgba(245,166,35,.1)':'transparent',
+                  color:tab===n.id?'var(--accent)':'var(--text)',
+                  fontWeight:tab===n.id?600:400,fontSize:15,cursor:'pointer',
+                  fontFamily:'var(--font-b)',textAlign:'left',
+                  borderLeft:tab===n.id?'3px solid var(--accent)':'3px solid transparent',
+                  transition:'all .15s'}}>
+                {n.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Content */}
-      <div style={{flex:1,padding:20,maxWidth:800,margin:'0 auto',width:'100%'}}>
+      <div style={{flex:1,padding:'16px',maxWidth:800,margin:'0 auto',width:'100%',boxSizing:'border-box'}}>
         {tab === 'groups' && (
           <>
             {/* Toggle grupo / fecha */}
