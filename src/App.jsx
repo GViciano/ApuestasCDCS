@@ -67,7 +67,7 @@ export default function App() {
       resultsRes.data?.forEach(r => { resMap[r.match_id] = r })
 
       const allBetsMap = {}
-      allBetsRes.data?.forEach(b => {
+      allBetsData.forEach(b => {
         if (!allBetsMap[b.match_id]) allBetsMap[b.match_id] = []
         allBetsMap[b.match_id].push(b)
       })
@@ -95,14 +95,25 @@ export default function App() {
     try {
       const allMatchIds = Object.values(GROUPS).flatMap(g => g.matches.map(m => m.id))
 
-      const [betsRes, resultsRes, allBetsRes, profilesRes] = await Promise.all([
-        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', allMatchIds).limit(5000),
+      // Paginate allBets to bypass Supabase 1000 row limit
+      let allBetsData = []
+      let from = 0
+      while (true) {
+        const { data, error } = await supabase.from('bets').select('*').in('match_id', allMatchIds).range(from, from + 999)
+        if (error) throw error
+        if (!data || data.length === 0) break
+        allBetsData = allBetsData.concat(data)
+        if (data.length < 1000) break
+        from += 1000
+      }
+
+      const [betsRes, resultsRes, profilesRes] = await Promise.all([
+        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', allMatchIds),
         supabase.from('results').select('*').in('match_id', allMatchIds),
-        supabase.from('bets').select('*').in('match_id', allMatchIds).limit(5000),
         supabase.from('profiles').select('id, username, display_name').eq('is_admin', false),
       ])
 
-      const errs = [betsRes, resultsRes, allBetsRes, profilesRes].map(r => r.error?.message).filter(Boolean)
+      const errs = [betsRes, resultsRes, profilesRes].map(r => r.error?.message).filter(Boolean)
       if (errs.length) throw new Error(errs[0])
 
       const betsMap = {}
@@ -110,7 +121,7 @@ export default function App() {
       const resMap = {}
       resultsRes.data?.forEach(r => { resMap[r.match_id] = r })
       const allBetsMap = {}
-      allBetsRes.data?.forEach(b => {
+      allBetsData.forEach(b => {
         if (!allBetsMap[b.match_id]) allBetsMap[b.match_id] = []
         allBetsMap[b.match_id].push(b)
       })

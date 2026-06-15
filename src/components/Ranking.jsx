@@ -16,20 +16,32 @@ export default function Ranking({ points, currentUser }) {
       ...allGroupMatches,
       ...(koMatches || []).map(m => ({ id: m.id, phase: 'ko' })),
     ]
-    const [{ data: profiles }, { data: bets }, { data: results }, { data: predictions }, { data: realQuals }, { data: predResults }] = await Promise.all([
+    // Fetch all bets with pagination (Supabase default limit is 1000)
+    let allBets = []
+    let from = 0
+    const pageSize = 1000
+    while (true) {
+      const { data, error } = await supabase.from('bets').select('*').range(from, from + pageSize - 1)
+      if (error) throw error
+      if (!data || data.length === 0) break
+      allBets = allBets.concat(data)
+      if (data.length < pageSize) break
+      from += pageSize
+    }
+    const bets = allBets
+    console.log('[Ranking] bets loaded (paginated):', bets.length, 'total')
+    const [{ data: profiles }, { data: results }, { data: predictions }, { data: realQuals }, { data: predResults }] = await Promise.all([
       supabase.from('profiles').select('*').eq('is_admin', false),
-      supabase.from('bets').select('*').limit(5000),
       supabase.from('results').select('*').limit(5000),
-      supabase.from('predictions').select('*'),
+      supabase.from('predictions').select('*').limit(5000),
       supabase.from('group_qualifiers').select('*'),
       supabase.from('prediction_results').select('*'),
     ])
-    const resultsMap = {}
-    results?.forEach(r => { resultsMap[r.match_id] = r })
-    console.log('[Ranking] results loaded:', Object.keys(resultsMap))
-    console.log('[Ranking] bets loaded:', bets?.length, 'total')
 
     // Real qualifiers map: { 'A': ['1st', '2nd', '3rd?'] } — sorted by position
+    const resultsMap = {}
+    results?.forEach(r => { resultsMap[r.match_id] = r })
+
     const realQualMap = {}
     realQuals?.forEach(q => {
       if (!realQualMap[q.group_id]) realQualMap[q.group_id] = [null, null, null]
