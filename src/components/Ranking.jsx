@@ -29,14 +29,24 @@ export default function Ranking({ points, currentUser }) {
       from += pageSize
     }
     const bets = allBets
-    console.log('[Ranking] bets loaded (paginated):', bets.length, 'total')
-    const [{ data: profiles }, { data: results }, { data: predictions }, { data: realQuals }, { data: predResults }] = await Promise.all([
+    // Paginate predictions too
+    let allPredictions = []
+    let predFrom = 0
+    while (true) {
+      const { data, error } = await supabase.from('predictions').select('*').range(predFrom, predFrom + 999)
+      if (error) throw error
+      if (!data || data.length === 0) break
+      allPredictions = allPredictions.concat(data)
+      if (data.length < 1000) break
+      predFrom += 1000
+    }
+    const [{ data: profiles }, { data: results }, { data: realQuals }, { data: predResults }] = await Promise.all([
       supabase.from('profiles').select('*').eq('is_admin', false),
       supabase.from('results').select('*').limit(5000),
-      supabase.from('predictions').select('*').limit(5000),
       supabase.from('group_qualifiers').select('*'),
       supabase.from('prediction_results').select('*'),
     ])
+    const predictions = allPredictions
 
     // Real qualifiers map: { 'A': ['1st', '2nd', '3rd?'] } — sorted by position
     const resultsMap = {}
