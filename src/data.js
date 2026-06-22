@@ -173,7 +173,7 @@ export const GROUPS = {
     matches: [
       {phase:'group',id:"C1",home:"Brasil",away:"Marruecos",date:"2026-06-14T00:00"},
       {phase:'group',id:"C2",home:"Haití",away:"Escocia",date:"2026-06-14T03:00"},
-      {phase:'group',id:"C3",home:"Brasil",away:"Haití",date:"2026-06-20T03:00"},
+      {phase:'group',id:"C3",home:"Brasil",away:"Haití",date:"2026-06-20T02:30"},
       {phase:'group',id:"C4",home:"Escocia",away:"Marruecos",date:"2026-06-20T00:00"},
       {phase:'group',id:"C5",home:"Escocia",away:"Brasil",date:"2026-06-25T00:00"},
       {phase:'group',id:"C6",home:"Marruecos",away:"Haití",date:"2026-06-25T00:00"},
@@ -184,7 +184,7 @@ export const GROUPS = {
     matches: [
       {phase:'group',id:"D1",home:"EE.UU.",away:"Paraguay",date:"2026-06-13T03:00"},
       {phase:'group',id:"D2",home:"Australia",away:"Turquía",date:"2026-06-14T06:00"},
-      {phase:'group',id:"D3",home:"Turquía",away:"Paraguay",date:"2026-06-20T06:00"},
+      {phase:'group',id:"D3",home:"Turquía",away:"Paraguay",date:"2026-06-20T05:00"},
       {phase:'group',id:"D4",home:"EE.UU.",away:"Australia",date:"2026-06-19T21:00"},
       {phase:'group',id:"D5",home:"EE.UU.",away:"Turquía",date:"2026-06-26T04:00"},
       {phase:'group',id:"D6",home:"Paraguay",away:"Australia",date:"2026-06-26T04:00"},
@@ -196,7 +196,7 @@ export const GROUPS = {
       {phase:'group',id:"E1",home:"Alemania",away:"Curazao",date:"2026-06-14T19:00"},
       {phase:'group',id:"E2",home:"Costa de Marfil",away:"Ecuador",date:"2026-06-15T01:00"},
       {phase:'group',id:"E3",home:"Alemania",away:"Costa de Marfil",date:"2026-06-20T22:00"},
-      {phase:'group',id:"E4",home:"Ecuador",away:"Curazao",date:"2026-06-22T02:00"},
+      {phase:'group',id:"E4",home:"Ecuador",away:"Curazao",date:"2026-06-21T02:00"},
       {phase:'group',id:"E5",home:"Ecuador",away:"Alemania",date:"2026-06-25T22:00"},
       {phase:'group',id:"E6",home:"Curazao",away:"Costa de Marfil",date:"2026-06-25T22:00"},
     ]
@@ -218,7 +218,7 @@ export const GROUPS = {
       {phase:'group',id:"G1",home:"Bélgica",away:"Egipto",date:"2026-06-15T21:00"},
       {phase:'group',id:"G2",home:"Irán",away:"Nueva Zelanda",date:"2026-06-16T03:00"},
       {phase:'group',id:"G3",home:"Bélgica",away:"Irán",date:"2026-06-21T21:00"},
-      {phase:'group',id:"G4",home:"Nueva Zelanda",away:"Egipto",date:"2026-06-23T03:00"},
+      {phase:'group',id:"G4",home:"Nueva Zelanda",away:"Egipto",date:"2026-06-22T03:00"},
       {phase:'group',id:"G5",home:"Nueva Zelanda",away:"Bélgica",date:"2026-06-27T05:00"},
       {phase:'group',id:"G6",home:"Egipto",away:"Irán",date:"2026-06-27T05:00"},
     ]
@@ -240,7 +240,7 @@ export const GROUPS = {
       {phase:'group',id:"I1",home:"Francia",away:"Senegal",date:"2026-06-16T21:00"},
       {phase:'group',id:"I2",home:"Irak",away:"Noruega",date:"2026-06-17T00:00"},
       {phase:'group',id:"I3",home:"Francia",away:"Irak",date:"2026-06-22T23:00"},
-      {phase:'group',id:"I4",home:"Noruega",away:"Senegal",date:"2026-06-24T02:00"},
+      {phase:'group',id:"I4",home:"Noruega",away:"Senegal",date:"2026-06-23T02:00"},
       {phase:'group',id:"I5",home:"Noruega",away:"Francia",date:"2026-06-26T21:00"},
       {phase:'group',id:"I6",home:"Senegal",away:"Irak",date:"2026-06-26T21:00"},
     ]

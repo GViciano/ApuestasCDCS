@@ -47,7 +47,13 @@ function signLabel(hg, ag) {
 
 export default function MatchCard({ match, user, myBet, result, allBets, allProfiles, points, onBetSaved, onResultSaved }) {
   const hasResult = result && result.home_goals !== undefined
-  const open = isOpen(match.date) && !hasResult  // locked by time OR by admin result
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000)
+    return () => clearInterval(timer)
+  }, [])
+  const timeOpen = isOpen(match.date)  // true if match hasn't started yet (by time)
+  const open = timeOpen && !hasResult  // can bet: not started AND no result yet
   const tl = timeLeft(match.date)
   const earned = calcPoints(myBet, result, points)
   const breakdown = calcPointsBreakdown(myBet, result, points)
@@ -144,7 +150,7 @@ export default function MatchCard({ match, user, myBet, result, allBets, allProf
   )
 
   // Other players' bets — only shown when match is closed
-  const otherBets = !open ? (allBets || []).filter(b => b.user_id !== user.id) : []
+  const otherBets = !timeOpen ? (allBets || []).filter(b => b.user_id !== user.id) : []
 
   return (
     <div style={s.card(hasResult, resultSaved && user.is_admin)}>
@@ -366,7 +372,7 @@ export default function MatchCard({ match, user, myBet, result, allBets, allProf
       )}
 
       {/* Other players' bets */}
-      {!open && otherBets.length > 0 && (
+      {!timeOpen && otherBets.length > 0 && (
         <div style={s.section}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             <div style={s.sectionLabel(false)}>Apuestas de todos ({otherBets.length})</div>
