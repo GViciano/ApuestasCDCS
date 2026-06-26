@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
-import { SQUADS, fmtDate, isOpen, timeLeft, calcPoints, calcPointsBreakdown, getSign, MINUTE_RANGES_GROUP, MINUTE_RANGES_KO } from '../data.js'
+import { SQUADS, SQUAD_NUMBERS, fmtDate, isOpen, timeLeft, calcPoints, calcPointsBreakdown, getSign, MINUTE_RANGES_GROUP, MINUTE_RANGES_KO } from '../data.js'
 import Flag from './Flag.jsx'
 
 const s = {
@@ -141,10 +141,10 @@ export default function MatchCard({ match, user, myBet, result, allBets, allProf
     <select value={val} onChange={e => onChange(e.target.value)} disabled={disabled} style={s.sel(!disabled)}>
       <option value="">— Ninguno / sin goles —</option>
       <optgroup label={`── ${match.home} ──`}>
-        {homeSquad.map(p => <option key={p} value={p}>{p}</option>)}
+        {homeSquad.map(p => <option key={p} value={p}>{SQUAD_NUMBERS[match.home]?.[p] ? `${SQUAD_NUMBERS[match.home][p]}. ${p}` : p}</option>)}
       </optgroup>
       <optgroup label={`── ${match.away} ──`}>
-        {awaySquad.map(p => <option key={p} value={p}>{p}</option>)}
+        {awaySquad.map(p => <option key={p} value={p}>{SQUAD_NUMBERS[match.away]?.[p] ? `${SQUAD_NUMBERS[match.away][p]}. ${p}` : p}</option>)}
       </optgroup>
     </select>
   )

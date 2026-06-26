@@ -41,7 +41,7 @@ export default function KOSection({ user, points }) {
 
   const load = async () => {
     setLoading(true)
-    const { data: matches } = await supabase.from('ko_matches').select('*').order('created_at')
+    const { data: matches } = await supabase.from('ko_matches').select('*').order('match_date')
     const matchIds = (matches || []).map(m => m.id)
 
     const [betsRes, allBetsRes, resultsRes, profilesRes] = await Promise.all([
