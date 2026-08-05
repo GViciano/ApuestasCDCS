@@ -46,7 +46,7 @@ export default function Settings({ points, currentUser, jornadas, activeJornadaI
         ))}
       </div>
 
-      {section === 'jornadas' && <JornadasSection jornadas={jornadas} activeJornadaId={activeJornadaId} onUpdated={onJornadaUpdated} teams={teams} ligaId={ligaId} />}
+      {section === 'jornadas' && <JornadasSection activeJornadaId={activeJornadaId} onUpdated={onJornadaUpdated} teams={teams} ligaId={ligaId} />}
       {section === 'ligas' && <LigasSection currentLigaId={ligaId} />}
       {section === 'equipos' && <EquiposSection teams={teams} onUpdated={loadTeams} />}
       {section === 'players' && <PlayersSection teams={teams} />}
@@ -176,8 +176,10 @@ function EquiposSection({ teams, onUpdated }) {
 }
 
 // ── Jornadas Section ──────────────────────────────────────────────────────────
-function JornadasSection({ jornadas, activeJornadaId, onUpdated, teams, ligaId }) {
+function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
+  const [myJornadas, setMyJornadas] = useState([])
   const [selectedId, setSelectedId] = useState(null)
+  const [addToJornadaId, setAddToJornadaId] = useState(null)
   const [partidos, setPartidos] = useState([])
   const [newHome, setNewHome] = useState('')
   const [newAway, setNewAway] = useState('')
@@ -187,16 +189,21 @@ function JornadasSection({ jornadas, activeJornadaId, onUpdated, teams, ligaId }
   const [newJLabel, setNewJLabel] = useState('')
   const [creatingJ, setCreatingJ] = useState(false)
 
-  useEffect(() => {
-    if (jornadas.length > 0 && !selectedId) {
-      const active = jornadas.find(j => j.active) || jornadas[jornadas.length - 1]
-      setSelectedId(active?.id)
-    }
-  }, [jornadas])
+  useEffect(() => { if (ligaId) loadJornadas() }, [ligaId])
 
   useEffect(() => {
     if (selectedId) loadPartidos()
   }, [selectedId])
+
+  const loadJornadas = async () => {
+    const { data } = await supabase.from('liga_jornadas').select('*').eq('liga_id', ligaId).order('numero')
+    setMyJornadas(data || [])
+    if (data?.length && !selectedId) {
+      const active = data.find(j => j.active) || data[data.length - 1]
+      setSelectedId(active.id)
+      setAddToJornadaId(active.id)
+    }
+  }
 
   const loadPartidos = async () => {
     const { data } = await supabase.from('liga_partidos').select('*').eq('jornada_id', selectedId).order('match_date')
@@ -206,47 +213,47 @@ function JornadasSection({ jornadas, activeJornadaId, onUpdated, teams, ligaId }
   const createJornada = async () => {
     if (!newJLabel.trim()) return
     setCreatingJ(true)
-    const num = jornadas.length + 1
+    const num = myJornadas.length + 1
     const { data } = await supabase.from('liga_jornadas').insert({ numero: num, label: newJLabel.trim(), active: false, liga_id: ligaId }).select().single()
     setCreatingJ(false)
     setNewJLabel('')
     onUpdated()
-    if (data) setSelectedId(data.id)
+    await loadJornadas()
+    if (data) { setSelectedId(data.id); setAddToJornadaId(data.id) }
   }
 
   const setActive = async (id) => {
-    await supabase.from('liga_jornadas').update({ active: false }).neq('id', 'none')
+    await supabase.from('liga_jornadas').update({ active: false }).eq('liga_id', ligaId)
     await supabase.from('liga_jornadas').update({ active: true }).eq('id', id)
     onUpdated()
+    loadJornadas()
   }
 
   const deleteJornada = async (id) => {
     if (!confirm('¿Borrar jornada y todos sus partidos y apuestas?')) return
     await supabase.from('liga_jornadas').delete().eq('id', id)
-    if (selectedId === id) setSelectedId(jornadas.find(j => j.id !== id)?.id || null)
     onUpdated()
+    await loadJornadas()
+  }
+
+  const parseDate = (date, time) => {
+    const dp = date.trim().split('/'), tp = time.trim().split(':')
+    if (dp.length !== 3 || tp.length !== 2) return null
+    let [d, m, y] = dp.map(Number)
+    if (y < 100) y += 2000
+    const [h, min] = tp.map(Number)
+    const off = (m >= 3 && m <= 10) ? 2 : 1
+    return new Date(Date.UTC(y, m - 1, d, h - off, min)).toISOString()
   }
 
   const addPartido = async () => {
-    if (!newHome || !newAway || newHome === newAway) return
+    if (!newHome || !newAway || newHome === newAway || !addToJornadaId) return
     setAdding(true)
-    let match_date = null
-    if (newDate && newTime) {
-      // Parse DD/MM/AA or DD/MM/YYYY
-      const dateParts = newDate.trim().split('/')
-      const timeParts = newTime.trim().split(':')
-      if (dateParts.length === 3 && timeParts.length === 2) {
-        let [d, m, y] = dateParts.map(Number)
-        if (y < 100) y += 2000
-        const [h, min] = timeParts.map(Number)
-        const offsetHours = (m >= 3 && m <= 10) ? 2 : 1
-        match_date = new Date(Date.UTC(y, m - 1, d, h - offsetHours, min)).toISOString()
-      }
-    }
-    await supabase.from('liga_partidos').insert({ jornada_id: selectedId, home: newHome, away: newAway, match_date })
+    const match_date = (newDate && newTime) ? parseDate(newDate, newTime) : null
+    await supabase.from('liga_partidos').insert({ jornada_id: addToJornadaId, home: newHome, away: newAway, match_date })
     setAdding(false)
     setNewHome(''); setNewAway(''); setNewDate(''); setNewTime('')
-    loadPartidos()
+    if (addToJornadaId === selectedId) loadPartidos()
   }
 
   const deletePartido = async (id) => {
@@ -256,27 +263,20 @@ function JornadasSection({ jornadas, activeJornadaId, onUpdated, teams, ligaId }
   }
 
   const updatePartidoDate = async (id, date, time) => {
-    if (!date || !time) return
-    const dateParts = date.trim().split('/')
-    const timeParts = time.trim().split(':')
-    if (dateParts.length !== 3 || timeParts.length !== 2) return
-    let [d, m, y] = dateParts.map(Number)
-    if (y < 100) y += 2000
-    const [h, min] = timeParts.map(Number)
-    const offsetHours = (m >= 3 && m <= 10) ? 2 : 1
-    const match_date = new Date(Date.UTC(y, m - 1, d, h - offsetHours, min)).toISOString()
+    const match_date = parseDate(date, time)
+    if (!match_date) return
     await supabase.from('liga_partidos').update({ match_date }).eq('id', id)
     loadPartidos()
   }
 
-  const selectedJornada = jornadas.find(j => j.id === selectedId)
+  const selectedJornada = myJornadas.find(j => j.id === selectedId)
 
   return (
     <div>
       {/* Jornada selector */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <select value={selectedId || ''} onChange={e => setSelectedId(e.target.value)} style={{ ...sel, flex: 1 }}>
-          {jornadas.map(j => <option key={j.id} value={j.id}>{j.label}{j.active ? ' ★ Activa' : ''}</option>)}
+          {myJornadas.map(j => <option key={j.id} value={j.id}>{j.label}{j.active ? ' ★ Activa' : ''}</option>)}
         </select>
         {selectedId && selectedId !== activeJornadaId && (
           <button onClick={() => setActive(selectedId)} style={{ ...btn(), whiteSpace: 'nowrap' }}>★ Activar</button>
@@ -324,8 +324,8 @@ function JornadasSection({ jornadas, activeJornadaId, onUpdated, teams, ligaId }
             {/* Jornada destino */}
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Jornada</div>
-              <select value={selectedId || ''} onChange={e => setSelectedId(e.target.value)} style={sel}>
-                {jornadas.map(j => <option key={j.id} value={j.id}>{j.label}</option>)}
+              <select value={addToJornadaId || ''} onChange={e => setAddToJornadaId(e.target.value)} style={sel}>
+                {myJornadas.map(j => <option key={j.id} value={j.id}>{j.label}</option>)}
               </select>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, marginBottom: 8, alignItems: 'center' }}>
