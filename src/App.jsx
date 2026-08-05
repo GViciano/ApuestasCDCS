@@ -31,6 +31,7 @@ export default function App() {
   }
 
   const loadJornadas = async () => {
+    if (!user?.ligaId) return
     const { data } = await supabase.from('liga_jornadas')
       .select('*').eq('liga_id', user.ligaId).order('numero')
     if (data) {

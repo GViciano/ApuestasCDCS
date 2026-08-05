@@ -32,14 +32,29 @@ export default function Login({ onLogin }) {
         .from('profiles').select('*').eq('username', username.trim())
       if (!profiles?.length) { setError('Usuario no encontrado'); setLoading(false); return }
       const user = profiles[0]
-      if (user.password !== password) { setError('Contraseña incorrecta'); setLoading(false); return }
+
+      // If no password column or null: admin can login freely, regular users blocked
+      const hasPassword = user.password !== undefined && user.password !== null && user.password !== ''
+      if (hasPassword) {
+        if (user.password !== password) { setError('Contraseña incorrecta'); setLoading(false); return }
+      } else {
+        // Legacy: no password stored — only admin can enter
+        if (!user.is_admin) { setError('Contraseña incorrecta'); setLoading(false); return }
+      }
 
       if (user.is_admin) {
         // Admin: load all ligas
         const { data: allLigas } = await supabase.from('ligas').select('*').order('nombre')
-        setLigas(allLigas || [])
-        setUserData(user)
-        setMode('select-liga')
+        if (!allLigas || allLigas.length === 0) {
+          // No ligas yet — enter with null ligaId so admin can create the first one
+          onLogin({ ...user, ligaId: null, ligaNombre: 'Sin liga' })
+        } else if (allLigas.length === 1) {
+          onLogin({ ...user, ligaId: allLigas[0].id, ligaNombre: allLigas[0].nombre })
+        } else {
+          setLigas(allLigas)
+          setUserData(user)
+          setMode('select-liga')
+        }
       } else {
         // Regular user: load their ligas
         const { data: memberships } = await supabase
