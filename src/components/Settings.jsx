@@ -198,10 +198,10 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
   const loadJornadas = async () => {
     const { data } = await supabase.from('liga_jornadas').select('*').eq('liga_id', ligaId).order('numero')
     setMyJornadas(data || [])
-    if (data?.length && !selectedId) {
+    if (data?.length) {
       const active = data.find(j => j.active) || data[data.length - 1]
-      setSelectedId(active.id)
-      setAddToJornadaId(active.id)
+      setSelectedId(prev => prev || active.id)
+      setAddToJornadaId(prev => prev || active.id)
     }
   }
 
