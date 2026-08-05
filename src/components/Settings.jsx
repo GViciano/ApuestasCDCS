@@ -217,9 +217,14 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
     const { data } = await supabase.from('liga_jornadas').insert({ numero: num, label: newJLabel.trim(), active: false, liga_id: ligaId }).select().single()
     setCreatingJ(false)
     setNewJLabel('')
+    // Reload jornadas and select the new one
+    const { data: updated } = await supabase.from('liga_jornadas').select('*').eq('liga_id', ligaId).order('numero')
+    setMyJornadas(updated || [])
+    if (data) {
+      setSelectedId(data.id)
+      setAddToJornadaId(data.id)
+    }
     onUpdated()
-    await loadJornadas()
-    if (data) { setSelectedId(data.id); setAddToJornadaId(data.id) }
   }
 
   const setActive = async (id) => {
