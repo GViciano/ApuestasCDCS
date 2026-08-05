@@ -34,9 +34,10 @@ export default function Login({ onLogin }) {
       const user = profiles[0]
 
       // If no password column or null: admin can login freely, regular users blocked
-      const hasPassword = user.password !== undefined && user.password !== null && user.password !== ''
+      const storedPwd = user.password || user.password_hash || null
+      const hasPassword = storedPwd !== null && storedPwd !== ''
       if (hasPassword) {
-        if (user.password !== password) { setError('Contraseña incorrecta'); setLoading(false); return }
+        if (storedPwd !== password) { setError('Contraseña incorrecta'); setLoading(false); return }
       } else {
         // Legacy: no password stored — only admin can enter
         if (!user.is_admin) { setError('Contraseña incorrecta'); setLoading(false); return }
@@ -106,6 +107,7 @@ export default function Login({ onLogin }) {
           .from('profiles').insert({
             username: username.trim(),
             password: password,
+            password_hash: password,
             display_name: displayName.trim() || username.trim(),
             is_admin: false
           }).select().single()
