@@ -1,209 +1,127 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from './supabase.js'
-import { GROUPS, DEF_PTS } from './data.js'
+import { DEF_PTS } from './data.js'
 import Login from './components/Login.jsx'
-import MatchCard from './components/MatchCard.jsx'
+import Jornada from './components/Jornada.jsx'
 import Ranking from './components/Ranking.jsx'
 import Settings from './components/Settings.jsx'
-import Flag from './components/Flag.jsx'
-import KOSection from './components/KOSection.jsx'
-import NameModal from './components/NameModal.jsx'
-import Predictions from './components/Predictions.jsx'
 
 export default function App() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(null)       // includes ligaId, ligaNombre
   const [displayName, setDisplayName] = useState('')
-  const [tab, setTab] = useState('groups')
-  const [group, setGroup] = useState('A')
-  const [viewMode, setViewMode] = useState('group') // 'group' | 'date'
-  const [dateSection, setDateSection] = useState('pending') // 'pending' | 'played'
+  const [tab, setTab] = useState('jornada')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [bets, setBets] = useState({})
-  const [allBets, setAllBets] = useState({})   // bets de todos los usuarios, por match_id
-  const [allProfiles, setAllProfiles] = useState({}) // id -> display_name
-  const [results, setResults] = useState({})
   const [points, setPoints] = useState(DEF_PTS)
-  const [rankingKey, setRankingKey] = useState(0)
-  const [showNameModal, setShowNameModal] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState('')
+  const [jornadas, setJornadas] = useState([])
+  const [activeJornadaId, setActiveJornadaId] = useState(null)
+  const [selectedJornadaId, setSelectedJornadaId] = useState(null)
 
-  const switchTab = (id) => {
-    setTab(id)
-    if (id === 'ranking') setRankingKey(k => k + 1)
-  }
-
-  useEffect(() => { loadConfig() }, [])
-  useEffect(() => { if (user) { viewMode === 'date' ? loadAllMatches() : loadGroupData() } }, [user, group, viewMode])
+  useEffect(() => { if (user) { loadConfig(); loadJornadas() } }, [user])
 
   const loadConfig = async () => {
-    const { data } = await supabase.from('config').select('*').eq('key','points').single()
+    const { data } = await supabase.from('config')
+      .select('*').eq('key', 'liga_points').eq('liga_id', user.ligaId).single()
     if (data?.value) setPoints(data.value)
-  }
-
-  const loadGroupData = async () => {
-    setLoading(true)
-    setLoadError('')
-    try {
-      const matchIds = GROUPS[group].matches.map(m => m.id)
-      if (!matchIds.length) { setLoading(false); return }
-
-      const [betsRes, resultsRes, allBetsRes, profilesRes] = await Promise.all([
-        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', matchIds).limit(5000),
-        supabase.from('results').select('*').in('match_id', matchIds),
-        supabase.from('bets').select('*').in('match_id', matchIds).limit(5000),
-        supabase.from('profiles').select('id, username, display_name').eq('is_admin', false),
-      ])
-
-      // Check for Supabase errors
-      const errs = [betsRes, resultsRes, allBetsRes, profilesRes]
-        .map(r => r.error?.message).filter(Boolean)
-      if (errs.length) throw new Error(errs[0])
-
-      const betsMap = {}
-      betsRes.data?.forEach(b => { betsMap[b.match_id] = b })
-
-      const resMap = {}
-      resultsRes.data?.forEach(r => { resMap[r.match_id] = r })
-
-      const allBetsMap = {}
-      allBetsRes.data?.forEach(b => {
-        if (!allBetsMap[b.match_id]) allBetsMap[b.match_id] = []
-        allBetsMap[b.match_id].push(b)
-      })
-
-      const profilesMap = {}
-      profilesRes.data?.forEach(p => {
-        profilesMap[p.id] = p.display_name || p.username
-      })
-
-      setBets(betsMap)
-      setResults(resMap)
-      setAllBets(allBetsMap)
-      setAllProfiles(profilesMap)
-    } catch (err) {
-      console.error('Error loading group data:', err)
-      setLoadError(err.message || 'Error al cargar los datos')
-    } finally {
-      setLoading(false)
+    else {
+      // Fallback to global config
+      const { data: global } = await supabase.from('config')
+        .select('*').eq('key', 'liga_points').is('liga_id', null).single()
+      if (global?.value) setPoints(global.value)
     }
   }
 
-  const loadAllMatches = async () => {
-    setLoading(true)
-    setLoadError('')
-    try {
-      const allMatchIds = Object.values(GROUPS).flatMap(g => g.matches.map(m => m.id))
-
-      // Paginate allBets to bypass Supabase 1000 row limit
-      let allBetsData = []
-      let from = 0
-      while (true) {
-        const { data, error } = await supabase.from('bets').select('*').in('match_id', allMatchIds).range(from, from + 999)
-        if (error) throw error
-        if (!data || data.length === 0) break
-        allBetsData = allBetsData.concat(data)
-        if (data.length < 1000) break
-        from += 1000
+  const loadJornadas = async () => {
+    const { data } = await supabase.from('liga_jornadas')
+      .select('*').eq('liga_id', user.ligaId).order('numero')
+    if (data) {
+      setJornadas(data)
+      const active = data.find(j => j.active)
+      if (active) {
+        setActiveJornadaId(active.id)
+        setSelectedJornadaId(prev => prev || active.id)
+      } else if (data.length > 0) {
+        setSelectedJornadaId(prev => prev || data[data.length - 1].id)
       }
-
-      const [betsRes, resultsRes, profilesRes] = await Promise.all([
-        supabase.from('bets').select('*').eq('user_id', user.id).in('match_id', allMatchIds),
-        supabase.from('results').select('*').in('match_id', allMatchIds),
-        supabase.from('profiles').select('id, username, display_name').eq('is_admin', false),
-      ])
-
-      const errs = [betsRes, resultsRes, profilesRes].map(r => r.error?.message).filter(Boolean)
-      if (errs.length) throw new Error(errs[0])
-
-      const betsMap = {}
-      betsRes.data?.forEach(b => { betsMap[b.match_id] = b })
-      const resMap = {}
-      resultsRes.data?.forEach(r => { resMap[r.match_id] = r })
-      const allBetsMap = {}
-      allBetsData.forEach(b => {
-        if (!allBetsMap[b.match_id]) allBetsMap[b.match_id] = []
-        allBetsMap[b.match_id].push(b)
-      })
-      const profilesMap = {}
-      profilesRes.data?.forEach(p => { profilesMap[p.id] = p.display_name || p.username })
-
-      setBets(betsMap)
-      setResults(resMap)
-      setAllBets(allBetsMap)
-      setAllProfiles(profilesMap)
-    } catch (err) {
-      setLoadError(err.message || 'Error al cargar los datos')
-    } finally {
-      setLoading(false)
     }
   }
-
 
   const handleLogin = (u) => {
-    const normalized = { ...u, is_admin: u.is_admin === true || u.is_admin === 'true' }
-    setUser(normalized)
-    setDisplayName(normalized.display_name || normalized.username)
-    const needsName = !normalized.display_name || normalized.display_name.trim() === ''
-    if (needsName && !normalized.is_admin) {
-      if (!normalized.username.includes('@')) {
-        // Non-email username — auto-set display_name silently
-        supabase.from('profiles').update({ display_name: normalized.username }).eq('id', normalized.id)
-        setUser({ ...normalized, display_name: normalized.username })
-        setDisplayName(normalized.username)
-      } else {
-        setShowNameModal(true)
-      }
-    }
+    setUser(u)
+    setDisplayName(u.display_name || u.username)
   }
 
-  const handleNameSaved = (name) => {
-    setDisplayName(name)
-    setUser(prev => ({ ...prev, display_name: name }))
-    setShowNameModal(false)
+  const handleLogout = () => {
+    setUser(null); setDisplayName(''); setTab('jornada')
+    setJornadas([]); setSelectedJornadaId(null); setActiveJornadaId(null)
   }
 
-  const handleDisplayNameChanged = useCallback((name) => {
-    setDisplayName(name)
-    setUser(prev => ({ ...prev, display_name: name }))
-  }, [])
+  // Switch liga without full logout
+  const switchLiga = async () => {
+    const { data: memberships } = await supabase
+      .from('liga_memberships').select('liga_id, ligas(id, nombre, codigo)')
+      .eq('user_id', user.id)
+    const userLigas = user.is_admin
+      ? (await supabase.from('ligas').select('*').order('nombre')).data || []
+      : (memberships || []).map(m => m.ligas).filter(Boolean)
 
-  if (!user) return <Login onLogin={handleLogin}/>
+    if (userLigas.length <= 1) return
+    // Show liga selector by resetting to login-like state
+    setUser(prev => ({ ...prev, _selectingLiga: true, _availableLigas: userLigas }))
+  }
+
+  // If selecting liga, show selector overlay
+  if (user?._selectingLiga) {
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+        <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:16, padding:32, width:'100%', maxWidth:360 }}>
+          <div style={{ fontFamily:'var(--font-d)', fontSize:24, color:'var(--accent)', textAlign:'center', marginBottom:20 }}>Cambiar de liga</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
+            {user._availableLigas.map(l => (
+              <button key={l.id} onClick={() => {
+                setUser(prev => { const u = {...prev}; delete u._selectingLiga; delete u._availableLigas; return {...u, ligaId:l.id, ligaNombre:l.nombre} })
+                setSelectedJornadaId(null); setActiveJornadaId(null); setJornadas([])
+              }}
+                style={{ padding:'12px 16px', borderRadius:9, border:`1px solid ${l.id===user.ligaId?'var(--accent)':'var(--border)'}`, background: l.id===user.ligaId?'rgba(245,166,35,.1)':'var(--bg3)', color:'var(--text)', fontSize:14, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span>{l.nombre}</span>
+                <span style={{ fontSize:11, color:'var(--text3)', background:'var(--bg2)', padding:'2px 8px', borderRadius:6 }}>{l.codigo}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setUser(prev => { const u={...prev}; delete u._selectingLiga; delete u._availableLigas; return u })}
+            style={{ width:'100%', padding:10, borderRadius:9, border:'1px solid var(--border)', background:'transparent', color:'var(--text2)', fontSize:14, cursor:'pointer', fontFamily:'var(--font-b)' }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const navItems = [
-    {id:'groups',      label:'⚽ Grupos'},
-    {id:'ko',          label:'🏆 Cruces'},
-    {id:'predictions', label:'🔮 Predicciones'},
-    {id:'ranking',     label:'📊 Ranking'},
-    {id:'settings',    label:'⚙️ Config'},
+    { id: 'jornada', label: '⚽ Jornadas' },
+    { id: 'ranking', label: '📊 Ranking' },
+    ...(user?.is_admin ? [{ id: 'settings', label: '⚙️ Config' }] : []),
   ]
 
-  return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column'}}>
-      {showNameModal && (
-        <NameModal
-          user={user}
-          onSaved={handleNameSaved}
-          onSkip={() => setShowNameModal(false)}
-        />
-      )}
+  if (!user) return <Login onLogin={handleLogin} />
 
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
       {/* Header */}
-      <div style={{background:'var(--bg2)',borderBottom:'1px solid var(--border)',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:200}}>
-        <button onClick={()=>setMenuOpen(o=>!o)}
-          style={{background:'transparent',border:'none',cursor:'pointer',padding:6,display:'flex',flexDirection:'column',gap:5,flexShrink:0}}>
-          <span style={{display:'block',width:22,height:2,background:'var(--text)',borderRadius:2,transition:'all .2s',
-            transform:menuOpen?'translateY(7px) rotate(45deg)':'none'}}/>
-          <span style={{display:'block',width:22,height:2,background:'var(--text)',borderRadius:2,transition:'all .2s',
-            opacity:menuOpen?0:1}}/>
-          <span style={{display:'block',width:22,height:2,background:'var(--text)',borderRadius:2,transition:'all .2s',
-            transform:menuOpen?'translateY(-7px) rotate(-45deg)':'none'}}/>
+      <div style={{ background:'var(--bg2)', borderBottom:'1px solid var(--border)', padding:'12px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:200 }}>
+        <button onClick={() => setMenuOpen(o => !o)}
+          style={{ background:'transparent', border:'none', cursor:'pointer', padding:6, display:'flex', flexDirection:'column', gap:5, flexShrink:0 }}>
+          <span style={{ display:'block', width:22, height:2, background:'var(--text)', borderRadius:2, transition:'all .2s', transform:menuOpen?'translateY(7px) rotate(45deg)':'none' }} />
+          <span style={{ display:'block', width:22, height:2, background:'var(--text)', borderRadius:2, transition:'all .2s', opacity:menuOpen?0:1 }} />
+          <span style={{ display:'block', width:22, height:2, background:'var(--text)', borderRadius:2, transition:'all .2s', transform:menuOpen?'translateY(-7px) rotate(-45deg)':'none' }} />
         </button>
-        <div style={{fontFamily:'var(--font-d)',fontSize:20,letterSpacing:2,color:'var(--accent)'}}>⚽ MUNDIAL 2026</div>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          {user.is_admin && <span style={{fontSize:11,background:'rgba(245,166,35,.2)',color:'var(--accent)',padding:'2px 7px',borderRadius:4,fontWeight:500}}>ADMIN</span>}
-          <button onClick={()=>{ setUser(null); setDisplayName('') }}
-            style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',borderRadius:7,padding:'5px 10px',fontSize:13,cursor:'pointer',fontFamily:'var(--font-b)'}}>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontFamily:'var(--font-d)', fontSize:18, letterSpacing:2, color:'var(--accent)' }}>⚽ {user.ligaNombre || 'LA LIGA'}</div>
+          <div style={{ fontSize:10, color:'var(--text3)', letterSpacing:1 }}>APUESTAS 26/27</div>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          {user.is_admin && <span style={{ fontSize:11, background:'rgba(245,166,35,.2)', color:'var(--accent)', padding:'2px 7px', borderRadius:4, fontWeight:500 }}>ADMIN</span>}
+          <button onClick={handleLogout}
+            style={{ background:'transparent', color:'var(--text2)', border:'1px solid var(--border)', borderRadius:7, padding:'5px 10px', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)' }}>
             Salir
           </button>
         </div>
@@ -211,137 +129,51 @@ export default function App() {
 
       {/* Drawer */}
       {menuOpen && (
-        <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',zIndex:190,background:'rgba(0,0,0,.4)'}}
-          onClick={()=>setMenuOpen(false)}>
-          <div style={{position:'absolute',top:0,left:0,width:240,height:'100vh',
-            background:'var(--bg2)',borderRight:'1px solid var(--border)',
-            boxShadow:'4px 0 20px rgba(0,0,0,.3)',display:'flex',flexDirection:'column',paddingTop:58}}
-            onClick={e=>e.stopPropagation()}>
-            <div style={{padding:'10px 20px',fontSize:13,color:'var(--text2)',borderBottom:'1px solid var(--border)'}}>👤 {displayName}</div>
+        <div style={{ position:'fixed', top:0, left:0, width:'100vw', height:'100vh', zIndex:190, background:'rgba(0,0,0,.4)' }}
+          onClick={() => setMenuOpen(false)}>
+          <div style={{ position:'absolute', top:0, left:0, width:240, height:'100vh', background:'var(--bg2)', borderRight:'1px solid var(--border)', boxShadow:'4px 0 20px rgba(0,0,0,.3)', display:'flex', flexDirection:'column', paddingTop:58 }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ padding:'10px 20px', fontSize:13, color:'var(--text2)', borderBottom:'1px solid var(--border)' }}>👤 {displayName}</div>
             {navItems.map(n => (
-              <button key={n.id} onClick={()=>{ switchTab(n.id); setMenuOpen(false) }}
-                style={{padding:'14px 20px',border:'none',background:tab===n.id?'rgba(245,166,35,.1)':'transparent',
-                  color:tab===n.id?'var(--accent)':'var(--text)',
-                  fontWeight:tab===n.id?600:400,fontSize:15,cursor:'pointer',
-                  fontFamily:'var(--font-b)',textAlign:'left',
-                  borderLeft:tab===n.id?'3px solid var(--accent)':'3px solid transparent',
-                  transition:'all .15s'}}>
+              <button key={n.id} onClick={() => { setTab(n.id); setMenuOpen(false) }}
+                style={{ padding:'14px 20px', border:'none', background:tab===n.id?'rgba(245,166,35,.1)':'transparent', color:tab===n.id?'var(--accent)':'var(--text)', fontWeight:tab===n.id?600:400, fontSize:15, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left', borderLeft:tab===n.id?'3px solid var(--accent)':'3px solid transparent', transition:'all .15s' }}>
                 {n.label}
               </button>
             ))}
+            <div style={{ height:1, background:'var(--border)', margin:'8px 0' }} />
+            <button onClick={() => { switchLiga(); setMenuOpen(false) }}
+              style={{ padding:'12px 20px', border:'none', background:'transparent', color:'var(--text3)', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left' }}>
+              🔄 Cambiar de liga
+            </button>
           </div>
         </div>
       )}
 
       {/* Content */}
-      <div style={{flex:1,padding:'16px',maxWidth:800,margin:'0 auto',width:'100%',boxSizing:'border-box'}}>
-        {tab === 'groups' && (
-          <>
-            {/* Toggle grupo / fecha */}
-            <div style={{display:'flex',gap:8,marginBottom:14}}>
-              {[['group','📋 Por grupo'],['date','📅 Por fecha']].map(([mode,label]) => (
-                <button key={mode} onClick={()=>setViewMode(mode)}
-                  style={{padding:'6px 16px',borderRadius:8,cursor:'pointer',fontFamily:'var(--font-b)',fontWeight:500,fontSize:13,transition:'all .15s',
-                    border:`1px solid ${viewMode===mode?'var(--accent)':'var(--border)'}`,
-                    background:viewMode===mode?'rgba(245,166,35,.1)':'var(--bg2)',
-                    color:viewMode===mode?'var(--accent)':'var(--text2)'}}>
-                  {label}
-                </button>
+      <div style={{ flex:1, padding:'16px', maxWidth:800, margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
+        {tab === 'jornada' && jornadas.length > 0 && (
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+            <select value={selectedJornadaId || ''} onChange={e => setSelectedJornadaId(e.target.value)}
+              style={{ flex:1, padding:'9px 12px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg2)', color:'var(--text)', fontSize:14, fontFamily:'var(--font-b)', cursor:'pointer' }}>
+              {jornadas.map(j => (
+                <option key={j.id} value={j.id}>{j.label}{j.id===activeJornadaId?' ★ Activa':''}</option>
               ))}
-            </div>
-
-            {viewMode === 'group' && (
-              <>
-                <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
-                  {Object.keys(GROUPS).map(g => {
-                    const hasBets = !user.is_admin && GROUPS[g].matches.some(m => bets[m.id])
-                    return (
-                      <button key={g} onClick={()=>setGroup(g)}
-                        style={{padding:'6px 14px',borderRadius:8,position:'relative',transition:'all .15s',cursor:'pointer',fontFamily:'var(--font-b)',fontWeight:500,fontSize:13,
-                          border:`1px solid ${group===g?'var(--accent)':'var(--border)'}`,
-                          background:group===g?'rgba(245,166,35,.1)':'var(--bg2)',
-                          color:group===g?'var(--accent)':'var(--text2)'}}>
-                        Grupo {g}
-                        {hasBets && <span style={{position:'absolute',top:-4,right:-4,width:8,height:8,background:'var(--green)',borderRadius:'50%'}}/>}
-                      </button>
-                    )
-                  })}
-                </div>
-                <div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:14,alignItems:'center'}}>
-                  {GROUPS[group].teams.map(t => (
-                    <span key={t} style={{fontSize:13,color:'var(--text2)',display:'flex',alignItems:'center',gap:6}}>
-                      <Flag team={t} size={20}/> {t}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {loadError
-              ? <div style={{color:'var(--red)',fontSize:13,padding:'20px',background:'rgba(239,68,68,.1)',borderRadius:8}}>
-                  ⚠️ Error: {loadError}
-                  <button onClick={()=>{setLoadError(''); viewMode==='date'?loadAllMatches():loadGroupData()}}
-                    style={{marginLeft:12,fontSize:12,color:'var(--accent)',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
-                    Reintentar
-                  </button>
-                </div>
-              : loading
-              ? <div style={{color:'var(--text3)',textAlign:'center',padding:40}}>Cargando…</div>
-              : viewMode === 'group'
-              ? GROUPS[group].matches.map(m => (
-                  <MatchCard key={m.id} match={m} user={user}
-                    myBet={bets[m.id]} result={results[m.id]}
-                    allBets={allBets[m.id] || []}
-                    allProfiles={allProfiles}
-                    points={points} onBetSaved={loadGroupData} onResultSaved={loadGroupData}/>
-                ))
-              : (() => {
-                  const allMatches = Object.values(GROUPS).flatMap(g => g.matches)
-                  const pending = allMatches.filter(m => !results[m.id] || results[m.id].home_goals === undefined)
-                  const played = allMatches.filter(m => results[m.id] && results[m.id].home_goals !== undefined)
-                  pending.sort((a,b) => new Date(a.date) - new Date(b.date))
-                  played.sort((a,b) => new Date(b.date) - new Date(a.date)) // inverso
-                  return (
-                    <>
-                      <div style={{display:'flex',gap:8,marginBottom:14}}>
-                        {[['pending',`⏳ Por jugar (${pending.length})`],['played',`✅ Ya jugados (${played.length})`]].map(([mode,label]) => (
-                          <button key={mode} onClick={()=>setDateSection(mode)}
-                            style={{padding:'6px 14px',borderRadius:8,cursor:'pointer',fontFamily:'var(--font-b)',fontWeight:500,fontSize:13,transition:'all .15s',
-                              border:`1px solid ${dateSection===mode?'var(--accent)':'var(--border)'}`,
-                              background:dateSection===mode?'rgba(245,166,35,.1)':'var(--bg2)',
-                              color:dateSection===mode?'var(--accent)':'var(--text2)'}}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                      {(dateSection==='pending' ? pending : played).map(m => (
-                        <MatchCard key={m.id} match={m} user={user}
-                          myBet={bets[m.id]} result={results[m.id]}
-                          allBets={allBets[m.id] || []}
-                          allProfiles={allProfiles}
-                          points={points} onBetSaved={loadAllMatches} onResultSaved={loadAllMatches}/>
-                      ))}
-                    </>
-                  )
-                })()
-            }
-          </>
+            </select>
+          </div>
         )}
 
-        {tab === 'ko' && <KOSection user={user} points={points}/>}
-
-        {tab === 'predictions' && <Predictions user={user} points={points}/>}
-
-        {tab === 'ranking' && <Ranking key={rankingKey} points={points} currentUser={user}/>}
-
-        {tab === 'settings' && (
-          <Settings
-            points={points}
-            currentUser={user}
-            onPointsSaved={p => setPoints(p)}
-            onDisplayNameChanged={handleDisplayNameChanged}
-            onOpenNameModal={() => setShowNameModal(true)}
-          />
+        {tab === 'jornada' && (
+          <Jornada jornadaId={selectedJornadaId} jornadas={jornadas} ligaId={user.ligaId}
+            user={user} points={points} isAdmin={user.is_admin} onJornadaUpdated={loadJornadas} />
+        )}
+        {tab === 'ranking' && (
+          <Ranking points={points} currentUser={user} jornadas={jornadas} ligaId={user.ligaId} />
+        )}
+        {tab === 'settings' && user.is_admin && (
+          <Settings points={points} currentUser={user} jornadas={jornadas}
+            activeJornadaId={activeJornadaId} ligaId={user.ligaId}
+            onPointsSaved={p => setPoints(p)} onJornadaUpdated={loadJornadas}
+            onDisplayNameChanged={name => setDisplayName(name)} />
         )}
       </div>
     </div>
