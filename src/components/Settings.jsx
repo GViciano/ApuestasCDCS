@@ -280,10 +280,9 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
     loadPartidos()
   }
 
-  const updatePartidoDate = async (id, date, time) => {
-    const match_date = parseDate(date, time)
-    if (!match_date) return
-    await supabase.from('liga_partidos').update({ match_date }).eq('id', id)
+  const updatePartidoDate = async (id, isoDate) => {
+    if (!isoDate) return
+    await supabase.from('liga_partidos').update({ match_date: isoDate }).eq('id', id)
     loadPartidos()
   }
 
@@ -380,13 +379,36 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
 }
 
 function PartidoRow({ partido, onDelete, onDateChange }) {
-  const [editDate, setEditDate] = useState('')
-  const [editTime, setEditTime] = useState('')
+  // Pre-fill with existing date
+  const existingDate = partido.match_date ? new Date(partido.match_date) : null
+  const toMadridDate = (d) => {
+    if (!d) return ''
+    return d.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' })
+      .split('/').reverse().join('-') // DD/MM/YYYY -> YYYY-MM-DD for input[type=date]
+  }
+  const toMadridTime = (d) => {
+    if (!d) return ''
+    return d.toLocaleTimeString('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hour12: false })
+  }
+
+  const [editDate, setEditDate] = useState(toMadridDate(existingDate))
+  const [editTime, setEditTime] = useState(toMadridTime(existingDate))
   const [editing, setEditing] = useState(false)
 
   const currentDate = partido.match_date
     ? new Date(partido.match_date).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Madrid' })
     : 'Sin fecha'
+
+  const handleSave = () => {
+    if (!editDate || !editTime) return
+    // Convert YYYY-MM-DD + HH:MM to Madrid ISO
+    const [y, m, d] = editDate.split('-').map(Number)
+    const [h, min] = editTime.split(':').map(Number)
+    const off = (m >= 3 && m <= 10) ? 2 : 1
+    const iso = new Date(Date.UTC(y, m - 1, d, h - off, min)).toISOString()
+    onDateChange(partido.id, iso)
+    setEditing(false)
+  }
 
   const hasResult = partido.home_goals !== null
 
@@ -410,13 +432,20 @@ function PartidoRow({ partido, onDelete, onDateChange }) {
       </div>
       <div style={{ fontSize: 12, color: 'var(--text3)' }}>{currentDate}</div>
       {editing && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, marginTop: 4 }}>
-          <input type="text" value={editDate} onChange={e => setEditDate(e.target.value)}
-            placeholder="DD/MM/AA" style={{ ...inp, fontSize: 12 }} maxLength={8} />
-          <input type="text" value={editTime} onChange={e => setEditTime(e.target.value)}
-            placeholder="HH:MM" style={{ ...inp, fontSize: 12 }} maxLength={5} />
-          <button onClick={() => { onDateChange(partido.id, editDate, editTime); setEditing(false) }}
-            style={{ ...btn(), padding: '6px 10px', fontSize: 12 }}>✓</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>Fecha</div>
+              <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                style={{ ...inp, fontSize: 13, width: '100%', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>Hora</div>
+              <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)}
+                style={{ ...inp, fontSize: 13, width: '100%', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          <button onClick={handleSave} style={{ ...btn(), padding: '7px', fontSize: 12 }}>✓ Guardar fecha</button>
         </div>
       )}
     </div>

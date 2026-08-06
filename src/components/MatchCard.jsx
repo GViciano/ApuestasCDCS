@@ -108,7 +108,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
   }
 
   const saveResult = async () => {
-    if (rHome === '' || rAway === '') return
+    if (rHome === '' && rAway === '') return
     setRSaving(true)
     await supabase.from('liga_partidos').update({
       home_goals: +rHome, away_goals: +rAway,
@@ -281,7 +281,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
             </select>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={saveResult} disabled={rSaving || rHome === '' || rAway === ''}
+            <button onClick={saveResult} disabled={rSaving || (rHome === '' && rAway === '')}
               style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--border)', background: rSaved ? 'rgba(34,197,94,.1)' : 'var(--bg3)', color: rSaved ? 'var(--green)' : 'var(--text)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-b)' }}>
               {rSaving ? 'Guardando…' : rSaved ? '✓ Guardado' : '💾 Guardar resultado'}
             </button>

@@ -24,13 +24,15 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
     }
   }, [jornadas])
 
-  useEffect(() => { if (view !== 'chart') load(); else loadChart() }, [view, selectedJornadaId, points])
+  useEffect(() => { if (view !== 'chart') load(); else loadChart() }, [view, selectedJornadaId, points, ligaId])
 
   const load = async () => {
+    if (!ligaId) return
     setLoading(true)
     try {
-      // Only partidos from this liga's jornadas
-      const ligaJornadaIds = jornadas.map(j => j.id)
+      // Load jornadas for this liga fresh from DB
+      const { data: ligaJornadas } = await supabase.from('liga_jornadas').select('id').eq('liga_id', ligaId)
+      const ligaJornadaIds = (ligaJornadas || []).map(j => j.id)
       if (!ligaJornadaIds.length) { setScores([]); setLoading(false); return }
       let partidosQuery = supabase.from('liga_partidos').select('*').in('jornada_id', ligaJornadaIds)
       if (view === 'jornada' && selectedJornadaId) {
@@ -87,9 +89,12 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
   }
 
   const loadChart = async () => {
+    if (!ligaId) return
     setLoading(true)
     try {
-      const ligaJornadaIdsChart = jornadas.map(j => j.id)
+      const { data: ligaJornadasChart } = await supabase.from('liga_jornadas').select('*').eq('liga_id', ligaId).order('numero')
+      const activeJornadas = ligaJornadasChart || []
+      const ligaJornadaIdsChart = activeJornadas.map(j => j.id)
       if (!ligaJornadaIdsChart.length) { setChartData([]); setLoading(false); return }
       const { data: allPartidos } = await supabase.from('liga_partidos').select('*').in('jornada_id', ligaJornadaIdsChart).order('match_date')
       const { data: membershipsChart } = await supabase.from('liga_memberships').select('user_id').eq('liga_id', ligaId)
@@ -113,7 +118,7 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
 
       // Group partidos by jornada
       const jornadaPartidos = {}
-      jornadas.forEach(j => { jornadaPartidos[j.id] = { label: j.label, partidos: [] } })
+      activeJornadas.forEach(j => { jornadaPartidos[j.id] = { label: j.label, partidos: [] } })
       allPartidos.forEach(p => {
         if (jornadaPartidos[p.jornada_id]) jornadaPartidos[p.jornada_id].partidos.push(p)
       })
@@ -124,7 +129,7 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
 
       const data = []
       // Only process jornadas that have at least one result
-      const completedJornadas = jornadas.filter(j => {
+      const completedJornadas = activeJornadas.filter(j => {
         const parts = jornadaPartidos[j.id]?.partidos || []
         return parts.some(p => p.home_goals !== null)
       })
@@ -212,7 +217,7 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
       {view === 'jornada' && jornadas.length > 0 && (
         <select value={selectedJornadaId || ''} onChange={e => setSelectedJornadaId(e.target.value)}
           style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 14, fontFamily: 'var(--font-b)', marginBottom: 14 }}>
-          {jornadas.map(j => (
+          {jornadas.length > 0 ? jornadas.map(j => (
             <option key={j.id} value={j.id}>{j.label}{j.active ? ' ★' : ''}</option>
           ))}
         </select>
