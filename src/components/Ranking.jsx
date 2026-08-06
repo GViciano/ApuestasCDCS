@@ -217,7 +217,7 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
       {view === 'jornada' && jornadas.length > 0 && (
         <select value={selectedJornadaId || ''} onChange={e => setSelectedJornadaId(e.target.value)}
           style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 14, fontFamily: 'var(--font-b)', marginBottom: 14 }}>
-          {jornadas.length > 0 ? jornadas.map(j => (
+          {jornadas.map(j => (
             <option key={j.id} value={j.id}>{j.label}{j.active ? ' ★' : ''}</option>
           ))}
         </select>
