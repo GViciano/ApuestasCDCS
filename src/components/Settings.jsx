@@ -15,7 +15,7 @@ const sel = {
   ...inp, width: '100%',
 }
 
-export default function Settings({ points, currentUser, jornadas, activeJornadaId, ligaId, onPointsSaved, onJornadaUpdated, onDisplayNameChanged }) {
+export default function Settings({ points, currentUser, jornadas, activeJornadaId, ligaId, onPointsSaved, onJornadaUpdated, onDisplayNameChanged, onLigaCreated }) {
   const [section, setSection] = useState('jornadas')
   const [teams, setTeams] = useState(LALIGA_TEAMS)
 
@@ -47,7 +47,7 @@ export default function Settings({ points, currentUser, jornadas, activeJornadaI
       </div>
 
       {section === 'jornadas' && <JornadasSection activeJornadaId={activeJornadaId} onUpdated={onJornadaUpdated} teams={teams} ligaId={ligaId} />}
-      {section === 'ligas' && <LigasSection currentLigaId={ligaId} />}
+      {section === 'ligas' && <LigasSection currentLigaId={ligaId} onLigaCreated={onLigaCreated} />}
       {section === 'equipos' && <EquiposSection teams={teams} onUpdated={loadTeams} />}
       {section === 'players' && <PlayersSection teams={teams} />}
       {section === 'logos' && <LogosSection teams={teams} />}
@@ -57,7 +57,7 @@ export default function Settings({ points, currentUser, jornadas, activeJornadaI
 }
 
 // ── Ligas Section ─────────────────────────────────────────────────────────────
-function LigasSection({ currentLigaId }) {
+function LigasSection({ currentLigaId, onLigaCreated }) {
   const [ligas, setLigas] = useState([])
   const [nombre, setNombre] = useState('')
   const [codigo, setCodigo] = useState('')
@@ -80,7 +80,15 @@ function LigasSection({ currentLigaId }) {
     })
     setCreating(false)
     if (error) { setMsg('Error: ' + (error.message.includes('unique') ? 'Ese código ya existe' : error.message)) }
-    else { setMsg('✓ Liga creada'); setNombre(''); setCodigo(''); loadLigas() }
+    else {
+      setMsg('✓ Liga creada'); setNombre(''); setCodigo('')
+      loadLigas()
+      // If admin had no liga, switch to the new one automatically
+      if (!currentLigaId && onLigaCreated) {
+        const { data: newLiga } = await supabase.from('ligas').select('*').eq('codigo', codigo.trim().toUpperCase()).single()
+        if (newLiga) onLigaCreated(newLiga)
+      }
+    }
   }
 
   const deleteLiga = async (id) => {
@@ -212,6 +220,7 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
 
   const createJornada = async () => {
     if (!newJLabel.trim()) return
+    if (!ligaId) { alert('Error: ligaId es null. Valor: ' + ligaId); return }
     setCreatingJ(true)
     const num = myJornadas.length + 1
     const { data } = await supabase.from('liga_jornadas').insert({ numero: num, label: newJLabel.trim(), active: false, liga_id: ligaId }).select().single()

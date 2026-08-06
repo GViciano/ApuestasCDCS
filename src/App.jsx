@@ -174,7 +174,13 @@ export default function App() {
           <Settings points={points} currentUser={user} jornadas={jornadas}
             activeJornadaId={activeJornadaId} ligaId={user.ligaId}
             onPointsSaved={p => setPoints(p)} onJornadaUpdated={loadJornadas}
-            onDisplayNameChanged={name => setDisplayName(name)} />
+            onDisplayNameChanged={name => setDisplayName(name)}
+            onLigaCreated={liga => {
+              setUser(prev => ({ ...prev, ligaId: liga.id, ligaNombre: liga.nombre }))
+              setSelectedJornadaId(null)
+              setActiveJornadaId(null)
+              setJornadas([])
+            }} />
         )}
       </div>
     </div>
