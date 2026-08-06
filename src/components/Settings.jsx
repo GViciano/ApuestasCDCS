@@ -32,6 +32,7 @@ export default function Settings({ points, currentUser, jornadas, activeJornadaI
     { id: 'equipos', label: '🏟 Equipos' },
     { id: 'players', label: '👥 Jugadores' },
     { id: 'logos', label: '🛡 Escudos' },
+    { id: 'usuarios', label: '👤 Usuarios' },
     { id: 'config', label: '⚙️ Config' },
   ]
 
@@ -51,6 +52,7 @@ export default function Settings({ points, currentUser, jornadas, activeJornadaI
       {section === 'equipos' && <EquiposSection teams={teams} onUpdated={loadTeams} />}
       {section === 'players' && <PlayersSection teams={teams} />}
       {section === 'logos' && <LogosSection teams={teams} />}
+      {section === 'usuarios' && <UsuariosSection ligaId={ligaId} />}
       {section === 'config' && <ConfigSection points={points} onPointsSaved={onPointsSaved} currentUser={currentUser} onDisplayNameChanged={onDisplayNameChanged} ligaId={ligaId} />}
     </div>
   )
@@ -673,6 +675,79 @@ function LogosSection({ teams }) {
       <div style={{ marginTop: 20, fontSize: 12, color: 'var(--text3)' }}>
         {Object.keys(logos).length} / {teams.length} escudos subidos
       </div>
+    </div>
+  )
+}
+
+// ── Usuarios Section ──────────────────────────────────────────────────────────
+function UsuariosSection({ ligaId }) {
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => { loadUsers() }, [ligaId])
+
+  const loadUsers = async () => {
+    setLoading(true)
+    const { data: memberships } = await supabase
+      .from('liga_memberships').select('user_id, profiles(id, username, display_name, is_admin)')
+      .eq('liga_id', ligaId)
+    const members = (memberships || []).map(m => m.profiles).filter(p => p && !p.is_admin)
+    setUsers(members)
+    setLoading(false)
+  }
+
+  const deleteUser = async (userId, username) => {
+    if (!confirm(`¿Eliminar a ${username} de esta liga? También se borrarán sus apuestas.`)) return
+    // Remove from liga
+    await supabase.from('liga_memberships').delete().eq('user_id', userId).eq('liga_id', ligaId)
+    // Remove bets in this liga
+    await supabase.from('liga_bets').delete().eq('user_id', userId).eq('liga_id', ligaId)
+    loadUsers()
+  }
+
+  const deleteUserCompletely = async (userId, username) => {
+    if (!confirm(`¿BORRAR COMPLETAMENTE a ${username}? Se eliminará su cuenta y todas sus apuestas en todas las ligas.`)) return
+    if (!confirm('¿Seguro? Esta acción no se puede deshacer.')) return
+    await supabase.from('profiles').delete().eq('id', userId)
+    loadUsers()
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 14 }}>
+        Usuarios registrados en esta liga: <strong style={{ color: 'var(--text)' }}>{users.length}</strong>
+      </div>
+      {loading
+        ? <div style={{ color: 'var(--text3)', textAlign: 'center', padding: 20 }}>Cargando…</div>
+        : users.length === 0
+        ? <div style={{ color: 'var(--text3)', padding: 20 }}>No hay usuarios registrados en esta liga.</div>
+        : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {users.map(u => (
+              <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: 14 }}>{u.display_name || u.username}</div>
+                  {u.display_name && u.display_name !== u.username && (
+                    <div style={{ fontSize: 11, color: 'var(--text3)' }}>@{u.username}</div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => deleteUser(u.id, u.display_name || u.username)}
+                    title="Quitar de esta liga"
+                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(245,166,35,.3)', background: 'rgba(245,166,35,.08)', color: 'var(--accent)', fontSize: 12, cursor: 'pointer' }}>
+                    Quitar
+                  </button>
+                  <button onClick={() => deleteUserCompletely(u.id, u.display_name || u.username)}
+                    title="Borrar cuenta completamente"
+                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(239,68,68,.3)', background: 'rgba(239,68,68,.08)', color: 'var(--red)', fontSize: 12, cursor: 'pointer' }}>
+                    🗑
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      }
     </div>
   )
 }

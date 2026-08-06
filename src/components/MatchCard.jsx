@@ -216,17 +216,17 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
       {/* Bet form */}
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
             <div style={{ textAlign: 'center' }}>
               <div style={s.label}>Local</div>
               <input type="number" min="0" max="20" value={homeG} onChange={e => setHomeG(e.target.value)}
-                style={s.input(true)} placeholder="0" />
+                style={{ ...s.input(true), width: 64 }} placeholder="0" />
             </div>
-            <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 20, paddingTop: 20 }}>–</div>
+            <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 22, fontFamily: 'var(--font-d)', paddingTop: 18 }}>–</div>
             <div style={{ textAlign: 'center' }}>
               <div style={s.label}>Visitante</div>
               <input type="number" min="0" max="20" value={awayG} onChange={e => setAwayG(e.target.value)}
-                style={s.input(true)} placeholder="0" />
+                style={{ ...s.input(true), width: 64 }} placeholder="0" />
             </div>
           </div>
           <div>
@@ -261,17 +261,19 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
       {/* Admin result input */}
       {isAdmin && !open && (
         <div style={{ background: 'rgba(245,166,35,.05)', border: '1px solid rgba(245,166,35,.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
-          <div style={{ fontSize: 11, color: 'var(--accent)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .7 }}>Resultado real</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--accent)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: .7 }}>Resultado real</div>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginBottom: 10 }}>
             <input type="number" min="0" max="20" value={rHome} onChange={e => setRHome(e.target.value)}
-              style={s.input(true)} placeholder="0" />
-            <span style={{ color: 'var(--text3)', fontSize: 18 }}>–</span>
+              style={{ ...s.input(true), width: 64 }} placeholder="0" />
+            <span style={{ color: 'var(--text3)', fontSize: 22, fontFamily: 'var(--font-d)' }}>–</span>
             <input type="number" min="0" max="20" value={rAway} onChange={e => setRAway(e.target.value)}
-              style={s.input(true)} placeholder="0" />
+              style={{ ...s.input(true), width: 64 }} placeholder="0" />
           </div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Primer goleador</div>
           <div style={{ marginBottom: 8 }}>
             <PlayerSelect val={rScorer} onChange={setRScorer} disabled={false} />
           </div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Tramo del primer gol</div>
           <div style={{ marginBottom: 8 }}>
             <select value={rMinute} onChange={e => setRMinute(e.target.value)} style={s.sel(true)}>
               <option value="">— Tramo —</option>
