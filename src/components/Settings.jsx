@@ -223,7 +223,8 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
     if (!ligaId) { alert('Error: ligaId es null. Valor: ' + ligaId); return }
     setCreatingJ(true)
     const num = myJornadas.length + 1
-    const { data } = await supabase.from('liga_jornadas').insert({ numero: num, label: newJLabel.trim(), active: false, liga_id: ligaId }).select().single()
+    const { data, error } = await supabase.from('liga_jornadas').insert({ numero: num, label: newJLabel.trim(), active: false, liga_id: ligaId }).select().single()
+    if (error) { alert('Error Supabase: ' + error.message); setCreatingJ(false); return }
     setCreatingJ(false)
     setNewJLabel('')
     // Reload jornadas and select the new one
