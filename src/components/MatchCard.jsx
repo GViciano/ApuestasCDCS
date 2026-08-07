@@ -259,7 +259,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
       )}
 
       {/* Admin result input */}
-      {isAdmin && !open && (
+      {isAdmin && (
         <div style={{ background: 'rgba(245,166,35,.05)', border: '1px solid rgba(245,166,35,.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
           <div style={{ fontSize: 11, color: 'var(--accent)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: .7 }}>Resultado real</div>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginBottom: 10 }}>

@@ -712,6 +712,10 @@ function LogosSection({ teams }) {
 function UsuariosSection({ ligaId }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
+  const [resetUserId, setResetUserId] = useState(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [resetting, setResetting] = useState(false)
+  const [resetMsg, setResetMsg] = useState('')
 
   useEffect(() => { loadUsers() }, [ligaId])
 
@@ -725,11 +729,19 @@ function UsuariosSection({ ligaId }) {
     setLoading(false)
   }
 
+  const resetPassword = async (userId) => {
+    if (!newPassword.trim()) return
+    setResetting(true)
+    await supabase.from('profiles').update({ password: newPassword, password_hash: newPassword }).eq('id', userId)
+    setResetting(false)
+    setResetMsg('✓ Contraseña cambiada')
+    setNewPassword('')
+    setTimeout(() => { setResetMsg(''); setResetUserId(null) }, 2000)
+  }
+
   const deleteUser = async (userId, username) => {
     if (!confirm(`¿Eliminar a ${username} de esta liga? También se borrarán sus apuestas.`)) return
-    // Remove from liga
     await supabase.from('liga_memberships').delete().eq('user_id', userId).eq('liga_id', ligaId)
-    // Remove bets in this liga
     await supabase.from('liga_bets').delete().eq('user_id', userId).eq('liga_id', ligaId)
     loadUsers()
   }
@@ -753,25 +765,45 @@ function UsuariosSection({ ligaId }) {
         : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {users.map(u => (
-              <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: 14 }}>{u.display_name || u.username}</div>
-                  {u.display_name && u.display_name !== u.username && (
-                    <div style={{ fontSize: 11, color: 'var(--text3)' }}>@{u.username}</div>
-                  )}
+              <div key={u.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: 14 }}>{u.display_name || u.username}</div>
+                    {u.display_name && u.display_name !== u.username && (
+                      <div style={{ fontSize: 11, color: 'var(--text3)' }}>@{u.username}</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => { setResetUserId(resetUserId === u.id ? null : u.id); setNewPassword(''); setResetMsg('') }}
+                      title="Cambiar contraseña"
+                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: resetUserId === u.id ? 'rgba(245,166,35,.1)' : 'none', color: 'var(--text2)', fontSize: 12, cursor: 'pointer' }}>
+                      🔑
+                    </button>
+                    <button onClick={() => deleteUser(u.id, u.display_name || u.username)}
+                      title="Quitar de esta liga"
+                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(245,166,35,.3)', background: 'rgba(245,166,35,.08)', color: 'var(--accent)', fontSize: 12, cursor: 'pointer' }}>
+                      Quitar
+                    </button>
+                    <button onClick={() => deleteUserCompletely(u.id, u.display_name || u.username)}
+                      title="Borrar cuenta completamente"
+                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(239,68,68,.3)', background: 'rgba(239,68,68,.08)', color: 'var(--red)', fontSize: 12, cursor: 'pointer' }}>
+                      🗑
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => deleteUser(u.id, u.display_name || u.username)}
-                    title="Quitar de esta liga"
-                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(245,166,35,.3)', background: 'rgba(245,166,35,.08)', color: 'var(--accent)', fontSize: 12, cursor: 'pointer' }}>
-                    Quitar
-                  </button>
-                  <button onClick={() => deleteUserCompletely(u.id, u.display_name || u.username)}
-                    title="Borrar cuenta completamente"
-                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(239,68,68,.3)', background: 'rgba(239,68,68,.08)', color: 'var(--red)', fontSize: 12, cursor: 'pointer' }}>
-                    🗑
-                  </button>
-                </div>
+                {resetUserId === u.id && (
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                      placeholder="Nueva contraseña"
+                      type="text"
+                      style={{ ...inp, flex: 1, fontSize: 13 }}
+                      onKeyDown={e => e.key === 'Enter' && resetPassword(u.id)} />
+                    <button onClick={() => resetPassword(u.id)} disabled={resetting || !newPassword.trim()}
+                      style={{ ...btn(), padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                      {resetting ? '…' : resetMsg || '✓ Guardar'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

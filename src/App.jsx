@@ -11,6 +11,7 @@ export default function App() {
   const [displayName, setDisplayName] = useState('')
   const [tab, setTab] = useState('jornada')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showChangeName, setShowChangeName] = useState(false)
   const [points, setPoints] = useState(DEF_PTS)
   const [jornadas, setJornadas] = useState([])
   const [activeJornadaId, setActiveJornadaId] = useState(null)
@@ -142,6 +143,10 @@ export default function App() {
               </button>
             ))}
             <div style={{ height:1, background:'var(--border)', margin:'8px 0' }} />
+            <button onClick={() => { setShowChangeName(true); setMenuOpen(false) }}
+              style={{ padding:'12px 20px', border:'none', background:'transparent', color:'var(--text3)', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left' }}>
+              ✏️ Cambiar nombre
+            </button>
             <button onClick={() => { switchLiga(); setMenuOpen(false) }}
               style={{ padding:'12px 20px', border:'none', background:'transparent', color:'var(--text3)', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left' }}>
               🔄 Cambiar de liga
@@ -150,12 +155,23 @@ export default function App() {
         </div>
       )}
 
+      {/* Change name modal */}
+      {showChangeName && (
+        <ChangeNameModal
+          currentName={displayName}
+          userId={user.id}
+          onSaved={name => { setDisplayName(name); setUser(prev => ({...prev, display_name: name})); setShowChangeName(false) }}
+          onClose={() => setShowChangeName(false)}
+        />
+      )}
+
       {/* Content */}
       <div style={{ flex:1, padding:'16px', maxWidth:800, margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
         {tab === 'jornada' && jornadas.length > 0 && (
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-            <select value={selectedJornadaId || ''} onChange={e => setSelectedJornadaId(e.target.value)}
+            <select value={selectedJornadaId || 'proximos'} onChange={e => setSelectedJornadaId(e.target.value === 'proximos' ? null : e.target.value)}
               style={{ flex:1, padding:'9px 12px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg2)', color:'var(--text)', fontSize:14, fontFamily:'var(--font-b)', cursor:'pointer' }}>
+              <option value="proximos">⏳ Próximos partidos</option>
               {jornadas.map(j => (
                 <option key={j.id} value={j.id}>{j.label}{j.id===activeJornadaId?' ★ Activa':''}</option>
               ))}
@@ -182,6 +198,45 @@ export default function App() {
               setJornadas([])
             }} />
         )}
+      </div>
+    </div>
+  )
+}
+
+function ChangeNameModal({ currentName, userId, onSaved, onClose }) {
+  const [name, setName] = useState(currentName)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const save = async () => {
+    if (!name.trim()) return
+    setSaving(true)
+    const { error } = await supabase.from('profiles').update({ display_name: name.trim() }).eq('id', userId)
+    if (error) { setError(error.message); setSaving(false); return }
+    onSaved(name.trim())
+  }
+
+  return (
+    <div style={{ position:'fixed', top:0, left:0, width:'100vw', height:'100vh', zIndex:300, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+      onClick={onClose}>
+      <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:16, padding:28, width:'100%', maxWidth:340 }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight:600, fontSize:16, marginBottom:16 }}>✏️ Cambiar nombre</div>
+        {error && <div style={{ color:'var(--red)', fontSize:13, marginBottom:10 }}>{error}</div>}
+        <input value={name} onChange={e => setName(e.target.value)}
+          onKeyDown={e => e.key==='Enter' && save()}
+          style={{ width:'100%', padding:'10px 12px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--text)', fontSize:14, fontFamily:'var(--font-b)', outline:'none', boxSizing:'border-box', marginBottom:14 }}
+          autoFocus />
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={onClose}
+            style={{ flex:1, padding:10, borderRadius:9, border:'1px solid var(--border)', background:'transparent', color:'var(--text2)', fontSize:14, cursor:'pointer', fontFamily:'var(--font-b)' }}>
+            Cancelar
+          </button>
+          <button onClick={save} disabled={saving || !name.trim()}
+            style={{ flex:1, padding:10, borderRadius:9, border:'none', background:'var(--accent)', color:'#000', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'var(--font-b)' }}>
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
       </div>
     </div>
   )
