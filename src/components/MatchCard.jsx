@@ -52,8 +52,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
   }, [])
 
   const timeOpen = isOpen(partido.match_date)
-  const open = timeOpen && !hasResult  // can bet: time not up AND no result
-  // Show other bets when: time is up OR result has been entered
+  const open = timeOpen && !hasResult && !isAdmin  // admin never bets
   const showOtherBets = !timeOpen || hasResult
 
   const [homeG, setHomeG] = useState(myBet?.home_goals ?? '')

@@ -38,12 +38,8 @@ export default function App() {
     if (data) {
       setJornadas(data)
       const active = data.find(j => j.active)
-      if (active) {
-        setActiveJornadaId(active.id)
-        setSelectedJornadaId(prev => prev || active.id)
-      } else if (data.length > 0) {
-        setSelectedJornadaId(prev => prev || data[data.length - 1].id)
-      }
+      if (active) setActiveJornadaId(active.id)
+      // Always default to null (Próximos partidos), never auto-select a jornada
     }
   }
 
