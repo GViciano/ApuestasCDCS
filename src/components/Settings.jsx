@@ -267,7 +267,13 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
   const addPartido = async () => {
     if (!newHome || !newAway || newHome === newAway || !addToJornadaId) return
     setAdding(true)
-    const match_date = (newDate && newTime) ? parseDate(newDate, newTime) : null
+    let match_date = null
+    if (newDate && newTime) {
+      const [y, m, d] = newDate.split('-').map(Number)
+      const [h, min] = newTime.split(':').map(Number)
+      const off = (m >= 3 && m <= 10) ? 2 : 1
+      match_date = new Date(Date.UTC(y, m - 1, d, h - off, min)).toISOString()
+    }
     await supabase.from('liga_partidos').insert({ jornada_id: addToJornadaId, home: newHome, away: newAway, match_date })
     setAdding(false)
     setNewHome(''); setNewAway(''); setNewDate(''); setNewTime('')
@@ -328,7 +334,9 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
           {/* Existing partidos */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {partidos.map(p => (
-              <PartidoRow key={p.id} partido={p} onDelete={deletePartido} onDateChange={updatePartidoDate} />
+              <PartidoRow key={p.id} partido={p} onDelete={deletePartido}
+                onDateChange={updatePartidoDate} onUpdate={loadPartidos}
+                myJornadas={myJornadas} teams={teams} />
             ))}
             {partidos.length === 0 && (
               <div style={{ color: 'var(--text3)', fontSize: 13, padding: 12 }}>No hay partidos. Añade uno abajo.</div>
@@ -358,14 +366,14 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Fecha (DD/MM/AA)</div>
-                <input type="text" value={newDate} onChange={e => setNewDate(e.target.value)}
-                  placeholder="ej: 20/08/26" style={inp} maxLength={8} />
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Fecha</div>
+                <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
+                  style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Hora (HH:MM)</div>
-                <input type="text" value={newTime} onChange={e => setNewTime(e.target.value)}
-                  placeholder="ej: 21:00" style={inp} maxLength={5} />
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Hora</div>
+                <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
+                  style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
               </div>
             </div>
             <button onClick={addPartido} disabled={adding || !newHome || !newAway} style={{ ...btn(), width: '100%' }}>
@@ -378,13 +386,12 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
   )
 }
 
-function PartidoRow({ partido, onDelete, onDateChange }) {
-  // Pre-fill with existing date
+function PartidoRow({ partido, onDelete, onDateChange, onUpdate, myJornadas, teams }) {
   const existingDate = partido.match_date ? new Date(partido.match_date) : null
   const toMadridDate = (d) => {
     if (!d) return ''
     return d.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' })
-      .split('/').reverse().join('-') // DD/MM/YYYY -> YYYY-MM-DD for input[type=date]
+      .split('/').reverse().join('-')
   }
   const toMadridTime = (d) => {
     if (!d) return ''
@@ -393,21 +400,34 @@ function PartidoRow({ partido, onDelete, onDateChange }) {
 
   const [editDate, setEditDate] = useState(toMadridDate(existingDate))
   const [editTime, setEditTime] = useState(toMadridTime(existingDate))
+  const [editHome, setEditHome] = useState(partido.home)
+  const [editAway, setEditAway] = useState(partido.away)
+  const [editJornadaId, setEditJornadaId] = useState(partido.jornada_id)
   const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const currentDate = partido.match_date
     ? new Date(partido.match_date).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Madrid' })
     : 'Sin fecha'
 
-  const handleSave = () => {
-    if (!editDate || !editTime) return
-    // Convert YYYY-MM-DD + HH:MM to Madrid ISO
-    const [y, m, d] = editDate.split('-').map(Number)
-    const [h, min] = editTime.split(':').map(Number)
-    const off = (m >= 3 && m <= 10) ? 2 : 1
-    const iso = new Date(Date.UTC(y, m - 1, d, h - off, min)).toISOString()
-    onDateChange(partido.id, iso)
+  const handleSave = async () => {
+    if (!editHome || !editAway || editHome === editAway) return
+    setSaving(true)
+    let match_date = partido.match_date
+    if (editDate && editTime) {
+      const [y, m, d] = editDate.split('-').map(Number)
+      const [h, min] = editTime.split(':').map(Number)
+      const off = (m >= 3 && m <= 10) ? 2 : 1
+      match_date = new Date(Date.UTC(y, m - 1, d, h - off, min)).toISOString()
+    }
+    await supabase.from('liga_partidos').update({
+      home: editHome, away: editAway,
+      jornada_id: editJornadaId,
+      match_date,
+    }).eq('id', partido.id)
+    setSaving(false)
     setEditing(false)
+    onUpdate()
   }
 
   const hasResult = partido.home_goals !== null
@@ -415,13 +435,16 @@ function PartidoRow({ partido, onDelete, onDateChange }) {
   return (
     <div style={{ background: 'var(--bg3)', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 14, fontWeight: 500 }}>
-          {partido.home} <span style={{ color: 'var(--text3)' }}>vs</span> {partido.away}
-          {hasResult && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--green)' }}>({partido.home_goals}–{partido.away_goals})</span>}
-        </span>
+        <div>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>
+            {partido.home} <span style={{ color: 'var(--text3)' }}>vs</span> {partido.away}
+            {hasResult && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--green)' }}>({partido.home_goals}–{partido.away_goals})</span>}
+          </span>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{currentDate}</div>
+        </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={() => setEditing(e => !e)}
-            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', fontSize: 12, cursor: 'pointer' }}>
+            style={{ padding: '4px 8px', borderRadius: 6, border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, background: editing ? 'rgba(245,166,35,.1)' : 'none', color: editing ? 'var(--accent)' : 'var(--text2)', fontSize: 12, cursor: 'pointer' }}>
             ✏️
           </button>
           <button onClick={() => onDelete(partido.id)}
@@ -430,22 +453,43 @@ function PartidoRow({ partido, onDelete, onDateChange }) {
           </button>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text3)' }}>{currentDate}</div>
+
       {editing && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+          {/* Jornada */}
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>Jornada</div>
+            <select value={editJornadaId} onChange={e => setEditJornadaId(e.target.value)} style={{ ...inp, width: '100%', boxSizing: 'border-box' }}>
+              {myJornadas.map(j => <option key={j.id} value={j.id}>{j.label}</option>)}
+            </select>
+          </div>
+          {/* Teams */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center' }}>
+            <select value={editHome} onChange={e => setEditHome(e.target.value)} style={{ ...inp, boxSizing: 'border-box' }}>
+              {teams.filter(t => t !== editAway).map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <span style={{ color: 'var(--text3)', textAlign: 'center', fontSize: 12 }}>vs</span>
+            <select value={editAway} onChange={e => setEditAway(e.target.value)} style={{ ...inp, boxSizing: 'border-box' }}>
+              {teams.filter(t => t !== editHome).map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          {/* Date + Time */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>Fecha</div>
               <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                style={{ ...inp, fontSize: 13, width: '100%', boxSizing: 'border-box' }} />
+                style={{ ...inp, width: '100%', boxSizing: 'border-box', fontSize: 13 }} />
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>Hora</div>
               <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)}
-                style={{ ...inp, fontSize: 13, width: '100%', boxSizing: 'border-box' }} />
+                style={{ ...inp, width: '100%', boxSizing: 'border-box', fontSize: 13 }} />
             </div>
           </div>
-          <button onClick={handleSave} style={{ ...btn(), padding: '7px', fontSize: 12 }}>✓ Guardar fecha</button>
+          <button onClick={handleSave} disabled={saving}
+            style={{ ...btn(), fontSize: 13 }}>
+            {saving ? 'Guardando…' : '✓ Guardar cambios'}
+          </button>
         </div>
       )}
     </div>
