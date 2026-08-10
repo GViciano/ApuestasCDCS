@@ -7,11 +7,12 @@ export const LALIGA_TEAMS = [
 ]
 
 export const DEF_PTS = {
-  exact: 3,      // resultado exacto
-  diff: 2,       // diferencia de goles exacta (implica ganador)
-  sign: 1,       // solo ganador/empate
-  scorer: 2,     // goleador
-  minute: 1,     // tramo de minuto
+  exact: 3,
+  diff: 2,
+  sign: 1,
+  scorer: 2,
+  minute: 1,
+  advanced: false,
 }
 
 export const MINUTE_RANGES = [
@@ -100,4 +101,64 @@ export function calcPointsBreakdown(bet, result, pts) {
     scorer: (bet.scorer && result.scorer && bet.scorer === result.scorer) ? pts.scorer : 0,
     minute: (bet.minute && result.minute && bet.minute === result.minute) ? pts.minute : 0,
   }
+}
+
+// ── Puntuación avanzada ───────────────────────────────────────────────────────
+// Para cada partido, calcula los puntos avanzados de todos los jugadores
+// basándose en cuántos acertaron cada concepto
+export function calcAdvancedPoints(bets, result, basePts, nPlayers) {
+  if (!result || result.home_goals === null) return {}
+
+  // Classify each bet
+  const exacto = [], diff = [], sign1x2 = [], goleador = [], tramo = []
+
+  bets.forEach(b => {
+    const bd = calcPointsBreakdown(b, result, basePts)
+    if (!bd) return
+    if (bd.resultType === 'exact') exacto.push(b.user_id)
+    else if (bd.resultType === 'diff') diff.push(b.user_id)
+    else if (bd.resultType === 'sign') sign1x2.push(b.user_id)
+    if (bd.scorer > 0) goleador.push(b.user_id)
+    if (bd.minute > 0) tramo.push(b.user_id)
+  })
+
+  // Calculate pool and per-player points for each concept
+  const poolExacto  = basePts.exact * nPlayers
+  const poolDiff    = basePts.diff  * nPlayers
+  const pool1x2     = basePts.sign  * nPlayers
+  const poolGol     = basePts.scorer * nPlayers
+  const poolTramo   = basePts.minute * nPlayers
+
+  const ptsExacto  = exacto.length  > 0 ? Math.round((poolExacto  / exacto.length)  * 100) / 100 : 0
+  const ptsDiff    = diff.length    > 0 ? Math.round((poolDiff    / diff.length)    * 100) / 100 : 0
+  const pts1x2     = sign1x2.length > 0 ? Math.round((pool1x2     / sign1x2.length) * 100) / 100 : 0
+  const ptsGol     = goleador.length > 0 ? Math.round((poolGol     / goleador.length) * 100) / 100 : 0
+  const ptsTramo   = tramo.length   > 0 ? Math.round((poolTramo   / tramo.length)   * 100) / 100 : 0
+
+  // Build result map: userId -> points breakdown
+  const result_map = {}
+  bets.forEach(b => {
+    const uid = b.user_id
+    let pts = 0, breakdown = { result: 0, resultType: null, scorer: 0, minute: 0 }
+
+    if (exacto.includes(uid)) {
+      pts += ptsExacto
+      breakdown.result = ptsExacto
+      breakdown.resultType = 'exact'
+    } else if (diff.includes(uid)) {
+      pts += ptsDiff
+      breakdown.result = ptsDiff
+      breakdown.resultType = 'diff'
+    } else if (sign1x2.includes(uid)) {
+      pts += pts1x2
+      breakdown.result = pts1x2
+      breakdown.resultType = 'sign'
+    }
+    if (goleador.includes(uid)) { pts += ptsGol; breakdown.scorer = ptsGol }
+    if (tramo.includes(uid))    { pts += ptsTramo; breakdown.minute = ptsTramo }
+
+    result_map[uid] = { total: pts, breakdown }
+  })
+
+  return result_map
 }

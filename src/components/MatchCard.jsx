@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
-import { MINUTE_RANGES, isOpen, timeLeft, fmtDate, calcPoints, calcPointsBreakdown } from '../data.js'
+import { MINUTE_RANGES, isOpen, timeLeft, fmtDate, calcPoints, calcPointsBreakdown, calcAdvancedPoints } from '../data.js'
 import Shield from './Shield.jsx'
 
 const s = {
@@ -125,8 +125,39 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
   }
 
   const otherBets = showOtherBets ? (allBets || []).filter(b => b.user_id !== user.id) : []
-  const earned = calcPoints(myBet, hasResult ? partido : null, points)
-  const breakdown = calcPointsBreakdown(myBet, hasResult ? partido : null, points)
+
+  // Calculate points — advanced or basic
+  const isAdvanced = points.advanced && hasResult
+  const nPlayers = isAdvanced ? (allBets || []).reduce((s, b) => {
+    // Count unique users (rough: just allBets length if each user has one bet)
+    return s
+  }, 0) : 0
+
+  // Advanced: compute all bets at once
+  const advancedMap = isAdvanced && allBets?.length
+    ? calcAdvancedPoints(allBets, partido, points, allBets.length + 1) // +1 includes current user if not in allBets
+    : null
+
+  const earned = (() => {
+    if (!hasResult || !myBet) return null
+    if (isAdvanced && advancedMap) {
+      // Need all bets including myBet for accurate calc
+      const allIncl = [...(allBets || []), myBet].filter((b, i, arr) => arr.findIndex(x => x.user_id === b.user_id) === i)
+      const aMap = calcAdvancedPoints(allIncl, partido, points, allIncl.length)
+      return aMap[user.id]?.total ?? null
+    }
+    return calcPoints(myBet, partido, points)
+  })()
+
+  const breakdown = (() => {
+    if (!hasResult || !myBet) return null
+    if (isAdvanced && advancedMap) {
+      const allIncl = [...(allBets || []), myBet].filter((b, i, arr) => arr.findIndex(x => x.user_id === b.user_id) === i)
+      const aMap = calcAdvancedPoints(allIncl, partido, points, allIncl.length)
+      return aMap[user.id]?.breakdown ?? null
+    }
+    return calcPointsBreakdown(myBet, partido, points)
+  })()
   const tl = timeLeft(partido.match_date)
 
   const resultLabel = () => {
@@ -305,8 +336,16 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {otherBets.map(b => {
                 const name = allProfiles[b.user_id] || '?'
-                const pts = hasResult ? calcPoints(b, partido, points) : null
-                const bd = hasResult ? calcPointsBreakdown(b, partido, points) : null
+                let pts = null
+                if (hasResult) {
+                  if (points.advanced && allBets?.length) {
+                    const allIncl = [...(allBets || []), ...(myBet ? [myBet] : [])].filter((x, i, arr) => arr.findIndex(y => y.user_id === x.user_id) === i)
+                    const aMap = calcAdvancedPoints(allIncl, partido, points, allIncl.length)
+                    pts = aMap[b.user_id]?.total ?? 0
+                  } else {
+                    pts = calcPoints(b, partido, points)
+                  }
+                }
                 return (
                   <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', borderRadius: 8, padding: '7px 10px', fontSize: 13 }}>
                     <div>

@@ -815,6 +815,7 @@ function UsuariosSection({ ligaId }) {
 
 // ── Config Section ────────────────────────────────────────────────────────────
 function ConfigSection({ points, onPointsSaved, currentUser, onDisplayNameChanged, ligaId }) {
+  const [advanced, setAdvanced] = useState(false)
   const [exact, setExact] = useState(points.exact)
   const [diff, setDiff] = useState(points.diff)
   const [sign, setSign] = useState(points.sign)
@@ -827,11 +828,12 @@ function ConfigSection({ points, onPointsSaved, currentUser, onDisplayNameChange
   useEffect(() => {
     setExact(points.exact); setDiff(points.diff); setSign(points.sign)
     setScorer(points.scorer); setMinute(points.minute)
+    setAdvanced(points.advanced || false)
   }, [points])
 
   const savePoints = async () => {
     setSaving(true)
-    const value = { exact: +exact, diff: +diff, sign: +sign, scorer: +scorer, minute: +minute }
+    const value = { exact: +exact, diff: +diff, sign: +sign, scorer: +scorer, minute: +minute, advanced }
     await supabase.from('config').upsert({ key: 'liga_points', value, liga_id: ligaId }, { onConflict: 'key,liga_id' })
     onPointsSaved(value)
     setSaving(false); setSaved(true)
@@ -854,6 +856,28 @@ function ConfigSection({ points, onPointsSaved, currentUser, onDisplayNameChange
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Advanced scoring toggle */}
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>⚡ Puntuación avanzada</div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>
+              Los puntos se reparten entre los acertantes
+            </div>
+          </div>
+          <button onClick={() => setAdvanced(a => !a)}
+            style={{ padding: '6px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-b)', fontWeight: 600, fontSize: 13, background: advanced ? 'var(--accent)' : 'var(--bg3)', color: advanced ? '#000' : 'var(--text3)', transition: 'all .2s' }}>
+            {advanced ? 'Activada' : 'Desactivada'}
+          </button>
+        </div>
+        {advanced && (
+          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text3)', background: 'var(--bg3)', borderRadius: 8, padding: '8px 12px' }}>
+            Fórmula: <strong style={{ color: 'var(--accent)' }}>(pts × nJugadores) / nAcertantes</strong><br />
+            Exacto y diff/1X2 son excluyentes. Goleador y tramo son independientes.
+          </div>
+        )}
+      </div>
+
       {/* Points config */}
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Puntuación</div>

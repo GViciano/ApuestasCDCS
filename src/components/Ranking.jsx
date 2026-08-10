@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
-import { calcPointsBreakdown } from '../data.js'
+import { calcPointsBreakdown, calcAdvancedPoints } from '../data.js'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 const medals = ['🥇', '🥈', '🥉']
@@ -56,21 +56,48 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
   }
 
   const calcScores = (members, allBets, resultsMap) => {
+    const nPlayers = members.length
+    const isAdvanced = points.advanced
+
+    // Pre-calculate advanced points per partido per user if advanced mode
+    const advancedMap = {} // partidoId -> { userId -> { total, breakdown } }
+    if (isAdvanced) {
+      Object.keys(resultsMap).forEach(partidoId => {
+        const betsForPartido = allBets.filter(b => b.partido_id === partidoId)
+        advancedMap[partidoId] = calcAdvancedPoints(betsForPartido, resultsMap[partidoId], points, nPlayers)
+      })
+    }
+
     return members.map(u => {
       let total = 0, exactN = 0, diffN = 0, signN = 0, scorerN = 0, minuteN = 0
       let exactPts = 0, diffPts = 0, signPts = 0, scorerPts = 0, minutePts = 0
+
       allBets.filter(b => b.user_id === u.id).forEach(b => {
         const result = resultsMap[b.partido_id]
         if (!result) return
-        const bd = calcPointsBreakdown(b, result, points)
-        if (!bd) return
-        total += bd.result + bd.scorer + bd.minute
-        if (bd.resultType === 'exact') { exactN++; exactPts += bd.result }
-        else if (bd.resultType === 'diff') { diffN++; diffPts += bd.result }
-        else if (bd.resultType === 'sign') { signN++; signPts += bd.result }
-        if (bd.scorer > 0) { scorerN++; scorerPts += bd.scorer }
-        if (bd.minute > 0) { minuteN++; minutePts += bd.minute }
+
+        if (isAdvanced && advancedMap[b.partido_id]) {
+          const adv = advancedMap[b.partido_id][u.id]
+          if (!adv) return
+          const bd = adv.breakdown
+          total += adv.total
+          if (bd.resultType === 'exact') { exactN++; exactPts += bd.result }
+          else if (bd.resultType === 'diff') { diffN++; diffPts += bd.result }
+          else if (bd.resultType === 'sign') { signN++; signPts += bd.result }
+          if (bd.scorer > 0) { scorerN++; scorerPts += bd.scorer }
+          if (bd.minute > 0) { minuteN++; minutePts += bd.minute }
+        } else {
+          const bd = calcPointsBreakdown(b, result, points)
+          if (!bd) return
+          total += bd.result + bd.scorer + bd.minute
+          if (bd.resultType === 'exact') { exactN++; exactPts += bd.result }
+          else if (bd.resultType === 'diff') { diffN++; diffPts += bd.result }
+          else if (bd.resultType === 'sign') { signN++; signPts += bd.result }
+          if (bd.scorer > 0) { scorerN++; scorerPts += bd.scorer }
+          if (bd.minute > 0) { minuteN++; minutePts += bd.minute }
+        }
       })
+
       const displayName = (u.display_name && u.display_name !== u.username)
         ? u.display_name : u.username.includes('@') ? '(sin nombre)' : u.username
       return { id: u.id, username: u.username, displayName, total, exactN, diffN, signN, scorerN, minuteN, exactPts, diffPts, signPts, scorerPts, minutePts }
