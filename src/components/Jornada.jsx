@@ -11,11 +11,17 @@ export default function Jornada({ jornadaId, jornadas, ligaId, user, points, isA
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const [nPlayers, setNPlayers] = useState(0)
+
   useEffect(() => { load() }, [jornadaId, ligaId, user?.id])
 
   const load = async () => {
     setLoading(true); setError('')
     try {
+      // Get member count for this liga
+      const { count } = await supabase.from('liga_memberships')
+        .select('*', { count: 'exact', head: true }).eq('liga_id', ligaId)
+      setNPlayers(count || 0)
       // Get all jornadas for this liga
       const { data: ligaJornadas } = await supabase
         .from('liga_jornadas').select('id, label').eq('liga_id', ligaId)
@@ -95,7 +101,7 @@ export default function Jornada({ jornadaId, jornadas, ligaId, user, points, isA
         <MatchCard key={p.id} partido={p} jornadaLabel={jornadaMap[p.jornada_id]}
           ligaId={ligaId} user={user} myBet={bets[p.id]}
           allBets={allBets[p.id] || []} allProfiles={allProfiles}
-          points={points} isAdmin={isAdmin} onSaved={load} />
+          points={points} isAdmin={isAdmin} onSaved={load} nPlayers={nPlayers} />
       ))}
     </div>
   )

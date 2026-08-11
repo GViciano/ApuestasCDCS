@@ -33,7 +33,7 @@ const s = {
 // Hide number input spinners globally
 const noSpinnerStyle = `input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}`
 
-export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, allBets, allProfiles, points, isAdmin, onSaved }) {
+export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, allBets, allProfiles, points, isAdmin, onSaved, nPlayers = 0 }) {
   const hasResult = partido.home_goals !== null && partido.home_goals !== undefined
 
   useEffect(() => {
@@ -128,33 +128,29 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
 
   // Calculate points — advanced or basic
   const isAdvanced = points.advanced && hasResult
-  const nPlayers = isAdvanced ? (allBets || []).reduce((s, b) => {
-    // Count unique users (rough: just allBets length if each user has one bet)
-    return s
-  }, 0) : 0
 
-  // Advanced: compute all bets at once
-  const advancedMap = isAdvanced && allBets?.length
-    ? calcAdvancedPoints(allBets, partido, points, allBets.length + 1) // +1 includes current user if not in allBets
-    : null
+  const getAdvancedMap = (betsArr) => {
+    if (!isAdvanced || !betsArr?.length) return null
+    const n = nPlayers || betsArr.length // fallback to bet count if nPlayers not loaded
+    return calcAdvancedPoints(betsArr, partido, points, n)
+  }
 
   const earned = (() => {
     if (!hasResult || !myBet) return null
-    if (isAdvanced && advancedMap) {
-      // Need all bets including myBet for accurate calc
+    if (isAdvanced) {
       const allIncl = [...(allBets || []), myBet].filter((b, i, arr) => arr.findIndex(x => x.user_id === b.user_id) === i)
-      const aMap = calcAdvancedPoints(allIncl, partido, points, allIncl.length)
-      return aMap[user.id]?.total ?? null
+      const aMap = getAdvancedMap(allIncl)
+      return aMap?.[user.id]?.total ?? null
     }
     return calcPoints(myBet, partido, points)
   })()
 
   const breakdown = (() => {
     if (!hasResult || !myBet) return null
-    if (isAdvanced && advancedMap) {
+    if (isAdvanced) {
       const allIncl = [...(allBets || []), myBet].filter((b, i, arr) => arr.findIndex(x => x.user_id === b.user_id) === i)
-      const aMap = calcAdvancedPoints(allIncl, partido, points, allIncl.length)
-      return aMap[user.id]?.breakdown ?? null
+      const aMap = getAdvancedMap(allIncl)
+      return aMap?.[user.id]?.breakdown ?? null
     }
     return calcPointsBreakdown(myBet, partido, points)
   })()
@@ -340,8 +336,8 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
                 if (hasResult) {
                   if (points.advanced && allBets?.length) {
                     const allIncl = [...(allBets || []), ...(myBet ? [myBet] : [])].filter((x, i, arr) => arr.findIndex(y => y.user_id === x.user_id) === i)
-                    const aMap = calcAdvancedPoints(allIncl, partido, points, allIncl.length)
-                    pts = aMap[b.user_id]?.total ?? 0
+                    const aMap = getAdvancedMap(allIncl)
+                    pts = aMap?.[b.user_id]?.total ?? 0
                   } else {
                     pts = calcPoints(b, partido, points)
                   }
