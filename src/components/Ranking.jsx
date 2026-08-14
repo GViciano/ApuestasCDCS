@@ -100,7 +100,7 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
 
       const displayName = (u.display_name && u.display_name !== u.username)
         ? u.display_name : u.username.includes('@') ? '(sin nombre)' : u.username
-      return { id: u.id, username: u.username, displayName, total, exactN, diffN, signN, scorerN, minuteN, exactPts, diffPts, signPts, scorerPts, minutePts }
+      return { id: u.id, username: u.username, displayName, total: Math.round(total * 100) / 100, exactN, diffN, signN, scorerN, minuteN, exactPts: Math.round(exactPts*100)/100, diffPts: Math.round(diffPts*100)/100, signPts: Math.round(signPts*100)/100, scorerPts: Math.round(scorerPts*100)/100, minutePts: Math.round(minutePts*100)/100 }
     }).sort((a, b) => b.total - a.total)
   }
 

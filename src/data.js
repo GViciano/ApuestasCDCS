@@ -149,21 +149,19 @@ export function calcAdvancedPoints(bets, result, basePts, nPlayers) {
     let pts = 0, breakdown = { result: 0, resultType: null, scorer: 0, minute: 0 }
 
     if (exacto.includes(uid)) {
-      // Exacto: entra en los 3 pools
-      const r = ptsExacto + ptsDiff + pts1x2
+      const r = Math.round((ptsExacto + ptsDiff + pts1x2) * 100) / 100
       pts += r; breakdown.result = r; breakdown.resultType = 'exact'
     } else if (diff.includes(uid)) {
-      // Diferencia: entra en pool diff + pool 1x2
-      const r = ptsDiff + pts1x2
+      const r = Math.round((ptsDiff + pts1x2) * 100) / 100
       pts += r; breakdown.result = r; breakdown.resultType = 'diff'
     } else if (sign1x2.includes(uid)) {
-      // 1X2: solo pool 1x2
-      pts += pts1x2; breakdown.result = pts1x2; breakdown.resultType = 'sign'
+      const r = Math.round(pts1x2 * 100) / 100
+      pts += r; breakdown.result = r; breakdown.resultType = 'sign'
     }
-    if (goleador.includes(uid)) { pts += ptsGol; breakdown.scorer = ptsGol }
-    if (tramo.includes(uid))    { pts += ptsTramo; breakdown.minute = ptsTramo }
+    if (goleador.includes(uid)) { const g = Math.round(ptsGol * 100) / 100; pts += g; breakdown.scorer = g }
+    if (tramo.includes(uid))    { const t = Math.round(ptsTramo * 100) / 100; pts += t; breakdown.minute = t }
 
-    result_map[uid] = { total: pts, breakdown }
+    result_map[uid] = { total: Math.round(pts * 100) / 100, breakdown }
   })
 
   return result_map
