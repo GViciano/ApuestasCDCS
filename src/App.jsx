@@ -7,8 +7,13 @@ import Ranking from './components/Ranking.jsx'
 import Settings from './components/Settings.jsx'
 
 export default function App() {
-  const [user, setUser] = useState(null)       // includes ligaId, ligaNombre
-  const [displayName, setDisplayName] = useState('')
+  const [user, setUser] = useState(() => {
+    try { const s = localStorage.getItem('apuestas_user'); return s ? JSON.parse(s) : null } catch { return null }
+  })
+  const [displayName, setDisplayName] = useState(() => {
+    try { const s = localStorage.getItem('apuestas_user'); if (s) { const u = JSON.parse(s); return u.display_name || u.username } } catch {}
+    return ''
+  })
   const [tab, setTab] = useState('jornada')
   const [menuOpen, setMenuOpen] = useState(false)
   const [showChangeName, setShowChangeName] = useState(false)
@@ -46,11 +51,13 @@ export default function App() {
   const handleLogin = (u) => {
     setUser(u)
     setDisplayName(u.display_name || u.username)
+    try { localStorage.setItem('apuestas_user', JSON.stringify(u)) } catch {}
   }
 
   const handleLogout = () => {
     setUser(null); setDisplayName(''); setTab('jornada')
     setJornadas([]); setSelectedJornadaId(null); setActiveJornadaId(null)
+    try { localStorage.removeItem('apuestas_user') } catch {}
   }
 
   // Switch liga without full logout
@@ -76,7 +83,7 @@ export default function App() {
           <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
             {user._availableLigas.map(l => (
               <button key={l.id} onClick={() => {
-                setUser(prev => { const u = {...prev}; delete u._selectingLiga; delete u._availableLigas; return {...u, ligaId:l.id, ligaNombre:l.nombre} })
+                setUser(prev => { const u = {...prev}; delete u._selectingLiga; delete u._availableLigas; const next = {...u, ligaId:l.id, ligaNombre:l.nombre}; try { localStorage.setItem('apuestas_user', JSON.stringify(next)) } catch {}; return next })
                 setSelectedJornadaId(null); setActiveJornadaId(null); setJornadas([])
               }}
                 style={{ padding:'12px 16px', borderRadius:9, border:`1px solid ${l.id===user.ligaId?'var(--accent)':'var(--border)'}`, background: l.id===user.ligaId?'rgba(245,166,35,.1)':'var(--bg3)', color:'var(--text)', fontSize:14, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -156,7 +163,7 @@ export default function App() {
         <ChangeNameModal
           currentName={displayName}
           userId={user.id}
-          onSaved={name => { setDisplayName(name); setUser(prev => ({...prev, display_name: name})); setShowChangeName(false) }}
+          onSaved={name => { setDisplayName(name); setUser(prev => { const next = {...prev, display_name: name}; try { localStorage.setItem('apuestas_user', JSON.stringify(next)) } catch {}; return next }); setShowChangeName(false) }}
           onClose={() => setShowChangeName(false)}
         />
       )}
