@@ -85,8 +85,15 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
     const { data } = await supabase.from('liga_players')
       .select('name, team').in('team', [partido.home, partido.away]).order('name')
     if (data) {
-      setHomePlayers(data.filter(p => p.team === partido.home).map(p => p.name))
-      setAwayPlayers(data.filter(p => p.team === partido.away).map(p => p.name))
+      const sortFn = (a, b) => {
+        const nA = parseInt(a.name), nB = parseInt(b.name)
+        if (!isNaN(nA) && !isNaN(nB)) return nA - nB
+        if (!isNaN(nA)) return -1
+        if (!isNaN(nB)) return 1
+        return a.name.localeCompare(b.name, 'es')
+      }
+      setHomePlayers(data.filter(p => p.team === partido.home).sort(sortFn).map(p => p.name))
+      setAwayPlayers(data.filter(p => p.team === partido.away).sort(sortFn).map(p => p.name))
     }
   }
 

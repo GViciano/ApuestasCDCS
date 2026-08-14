@@ -512,7 +512,14 @@ function PlayersSection({ teams }) {
   const loadPlayers = async () => {
     setLoading(true)
     const { data } = await supabase.from('liga_players').select('*').eq('team', selectedTeam).order('name')
-    setPlayers(data || [])
+    const sorted = (data || []).sort((a, b) => {
+      const numA = parseInt(a.name), numB = parseInt(b.name)
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+      if (!isNaN(numA)) return -1
+      if (!isNaN(numB)) return 1
+      return a.name.localeCompare(b.name, 'es')
+    })
+    setPlayers(sorted)
     setLoading(false)
   }
 
@@ -597,18 +604,59 @@ function PlayersSection({ teams }) {
         : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {players.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
-                <span style={{ fontSize: 14 }}>{p.name}</span>
-                <button onClick={() => deletePlayer(p.id)}
-                  style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(239,68,68,.3)', background: 'rgba(239,68,68,.08)', color: 'var(--red)', fontSize: 12, cursor: 'pointer' }}>
-                  🗑
-                </button>
-              </div>
+              <PlayerRow key={p.id} player={p} onDeleted={loadPlayers} onUpdated={loadPlayers} />
             ))}
             {players.length === 0 && <div style={{ color: 'var(--text3)', fontSize: 13, padding: 12 }}>Sin jugadores. Añade o importa la plantilla.</div>}
           </div>
         )
       }</div>
+  )
+}
+
+function PlayerRow({ player, onDeleted, onUpdated }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(player.name)
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    if (!name.trim() || name.trim() === player.name) { setEditing(false); return }
+    setSaving(true)
+    await supabase.from('liga_players').update({ name: name.trim() }).eq('id', player.id)
+    setSaving(false)
+    setEditing(false)
+    onUpdated()
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px' }}>
+      {editing ? (
+        <>
+          <input value={name} onChange={e => setName(e.target.value)} autoFocus
+            onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setName(player.name); setEditing(false) } }}
+            style={{ ...inp, flex: 1, padding: '5px 8px', fontSize: 13, marginBottom: 0 }} />
+          <button onClick={save} disabled={saving}
+            style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#000', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+            {saving ? '…' : '✓'}
+          </button>
+          <button onClick={() => { setName(player.name); setEditing(false) }}
+            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text3)', fontSize: 12, cursor: 'pointer' }}>
+            ✕
+          </button>
+        </>
+      ) : (
+        <>
+          <span style={{ flex: 1, fontSize: 14 }}>{player.name}</span>
+          <button onClick={() => setEditing(true)}
+            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text2)', fontSize: 12, cursor: 'pointer' }}>
+            ✏️
+          </button>
+          <button onClick={async () => { await supabase.from('liga_players').delete().eq('id', player.id); onDeleted() }}
+            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(239,68,68,.3)', background: 'rgba(239,68,68,.08)', color: 'var(--red)', fontSize: 12, cursor: 'pointer' }}>
+            🗑
+          </button>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -878,7 +926,9 @@ function ConfigSection({ points, onPointsSaved, currentUser, onDisplayNameChange
   const savePoints = async () => {
     setSaving(true)
     const value = { exact: +exact, diff: +diff, sign: +sign, scorer: +scorer, minute: +minute, advanced }
-    await supabase.from('config').upsert({ key: 'liga_points', value, liga_id: ligaId }, { onConflict: 'key,liga_id' })
+    // Delete existing and re-insert to avoid constraint issues
+    await supabase.from('config').delete().eq('key', 'liga_points').eq('liga_id', ligaId)
+    await supabase.from('config').insert({ key: 'liga_points', value, liga_id: ligaId })
     onPointsSaved(value)
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 1500)
