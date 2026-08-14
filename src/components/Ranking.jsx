@@ -167,10 +167,19 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
 
         members.forEach(u => {
           let jPts = 0
-          allBets.filter(b => b.user_id === u.id && resultsMap[b.partido_id]).forEach(b => {
-            const bd = calcPointsBreakdown(b, resultsMap[b.partido_id], points)
-            if (bd) jPts += bd.result + bd.scorer + bd.minute
-          })
+          if (points.advanced) {
+            // Advanced: calculate per-partido with all bets
+            jParts.filter(p => resultsMap[p.id]).forEach(p => {
+              const betsForPartido = allBets.filter(b => b.partido_id === p.id)
+              const aMap = calcAdvancedPoints(betsForPartido, resultsMap[p.id], points, members.length)
+              jPts += aMap[u.id]?.total ?? 0
+            })
+          } else {
+            allBets.filter(b => b.user_id === u.id && resultsMap[b.partido_id]).forEach(b => {
+              const bd = calcPointsBreakdown(b, resultsMap[b.partido_id], points)
+              if (bd) jPts += bd.result + bd.scorer + bd.minute
+            })
+          }
           userCumulative[u.id] = (userCumulative[u.id] || 0) + jPts
         })
 
@@ -207,7 +216,7 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
           <div key={entry.name} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:2 }}>
             <span style={{ color:entry.color, minWidth:20 }}>{entry.value}º</span>
             <span style={{ color:'var(--text2)' }}>{entry.name}</span>
-            <span style={{ color:entry.color, fontWeight:600, marginLeft:'auto', paddingLeft:12 }}>{ptsData[entry.name] ?? 0} pts</span>
+            <span style={{ color:entry.color, fontWeight:600, marginLeft:'auto', paddingLeft:12 }}>{ptsData[entry.name] ?? 0} pts acum.</span>
           </div>
         ))}
       </div>
