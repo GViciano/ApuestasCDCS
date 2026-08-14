@@ -208,7 +208,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
       </div>
 
       {/* Teams + score */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', marginBottom: hasResult ? 8 : 14 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
           <Shield team={partido.home} size={48} />
           <div style={s.teamName}>{partido.home}</div>
@@ -229,6 +229,18 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
           <div style={s.teamName}>{partido.away}</div>
         </div>
       </div>
+
+      {/* Official result info: scorer + minute */}
+      {hasResult && (partido.scorer || partido.minute) && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 12, fontSize: 12, color: 'var(--text3)' }}>
+          {partido.scorer && (
+            <span>⚽ <strong style={{ color: 'var(--text)' }}>{partido.scorer}</strong></span>
+          )}
+          {partido.minute && (
+            <span>🕐 <strong style={{ color: 'var(--text)' }}>{partido.minute}'</strong></span>
+          )}
+        </div>
+      )}
 
       {/* My result + breakdown */}
       {hasResult && myBet && (

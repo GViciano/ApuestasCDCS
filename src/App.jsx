@@ -17,6 +17,7 @@ export default function App() {
   const [tab, setTab] = useState('jornada')
   const [menuOpen, setMenuOpen] = useState(false)
   const [showChangeName, setShowChangeName] = useState(false)
+  const [showPuntos, setShowPuntos] = useState(false)
   const [points, setPoints] = useState(DEF_PTS)
   const [jornadas, setJornadas] = useState([])
   const [activeJornadaId, setActiveJornadaId] = useState(null)
@@ -146,6 +147,10 @@ export default function App() {
               </button>
             ))}
             <div style={{ height:1, background:'var(--border)', margin:'8px 0' }} />
+            <button onClick={() => { setShowPuntos(true); setMenuOpen(false) }}
+              style={{ padding:'12px 20px', border:'none', background:'transparent', color:'var(--text3)', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left' }}>
+              🏅 Puntos
+            </button>
             <button onClick={() => { setShowChangeName(true); setMenuOpen(false) }}
               style={{ padding:'12px 20px', border:'none', background:'transparent', color:'var(--text3)', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left' }}>
               ✏️ Cambiar nombre
@@ -159,6 +164,10 @@ export default function App() {
       )}
 
       {/* Change name modal */}
+      {showPuntos && (
+        <PuntosModal points={points} onClose={() => setShowPuntos(false)} />
+      )}
+
       {showChangeName && (
         <ChangeNameModal
           currentName={displayName}
@@ -240,6 +249,102 @@ function ChangeNameModal({ currentName, userId, onSaved, onClose }) {
             {saving ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function PuntosModal({ points, onClose }) {
+  const adv = points.advanced
+  const n = 8 // example league size
+
+  const overlay = { position:'fixed', top:0, left:0, width:'100vw', height:'100vh', zIndex:300, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'20px 16px', overflowY:'auto' }
+  const card = { background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:16, padding:24, width:'100%', maxWidth:480, marginTop: 20, marginBottom: 20 }
+  const section = { marginBottom:20 }
+  const row = (emoji, label, pts, desc) => (
+    <div style={{ marginBottom:12 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:3 }}>
+        <span style={{ fontSize:14, fontWeight:600 }}>{emoji} {label}</span>
+        <span style={{ fontFamily:'var(--font-d)', fontSize:18, color:'var(--accent)' }}>{pts}</span>
+      </div>
+      <div style={{ fontSize:12, color:'var(--text3)', lineHeight:1.5 }}>{desc}</div>
+    </div>
+  )
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <div style={card} onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div>
+            <div style={{ fontWeight:700, fontSize:18 }}>🏅 Sistema de puntos</div>
+            <div style={{ fontSize:12, color: adv ? 'var(--accent)' : 'var(--text3)', marginTop:3 }}>
+              {adv ? '⚡ Puntuación avanzada activa' : '📊 Puntuación básica activa'}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'var(--text3)' }}>✕</button>
+        </div>
+
+        {!adv ? (
+          <>
+            <div style={section}>
+              {row('🎯', 'Resultado exacto', `${points.exact} pts`,
+                'Aciertas exactamente el marcador final. Por ejemplo, apostaste 2-1 y acaba 2-1.')}
+              {row('↔️', 'Diferencia de goles exacta', `${points.diff} pts`,
+                'Aciertas la diferencia de goles y el ganador, pero no el marcador exacto. Por ejemplo, apostaste 2-0 y acaba 3-1 (diferencia de 2 goles, gana el local en ambos casos).')}
+              {row('✅', 'Ganador / Empate', `${points.sign} pts`,
+                'Aciertas quién gana o que hay empate, pero no la diferencia exacta. Por ejemplo, apostaste 1-0 y acaba 3-1 (gana el local, pero la diferencia no coincide).')}
+              {row('⚽', 'Primer goleador', `${points.scorer} pts`,
+                'Aciertas quién marca el primer gol del partido, independientemente del resultado.')}
+              {row('🕐', 'Tramo del primer gol', `${points.minute} pts`,
+                'Aciertas en qué tramo de minutos cae el primer gol (1-15\', 16-30\', 31-45+\', 46-60\', 61-75\', 76-90+\'), independientemente del resultado.')}
+            </div>
+            <div style={{ background:'var(--bg3)', borderRadius:10, padding:14, fontSize:12, color:'var(--text3)' }}>
+              <strong style={{ color:'var(--text)' }}>Ejemplo:</strong> Apostaste 2-1, Lewandowski, tramo 16-30\'. El partido acaba 2-1, marca Lewandowski en el minuto 24\'.<br/>
+              → 🎯 Exacto: +{points.exact} · ⚽ Goleador: +{points.scorer} · 🕐 Tramo: +{points.minute} = <strong style={{ color:'var(--accent)' }}>+{points.exact + points.scorer + points.minute} pts</strong>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ background:'rgba(245,166,35,.08)', border:'1px solid rgba(245,166,35,.2)', borderRadius:10, padding:14, marginBottom:20, fontSize:13 }}>
+              <div style={{ fontWeight:600, marginBottom:6 }}>¿Cómo funciona la puntuación avanzada?</div>
+              <div style={{ color:'var(--text3)', lineHeight:1.6 }}>
+                Los puntos de cada concepto forman un <strong style={{ color:'var(--text)' }}>pool</strong> que se reparte entre todos los que aciertan. A más acertantes, menos puntos por jugador.<br/><br/>
+                Fórmula: <strong style={{ color:'var(--accent)' }}>Pool ÷ nº acertantes</strong><br/>
+                Pool = pts del concepto × nº jugadores de la liga
+              </div>
+            </div>
+
+            <div style={section}>
+              {[
+                ['🎯', 'Resultado exacto', points.exact, 'exacto', 'Aciertas el marcador exacto. Tienes acceso al pool completo del resultado exacto.',
+                  `Pool = ${points.exact} pts × ${n} jugadores = ${points.exact * n} pts. Si 2 personas aciertan → ${(points.exact * n / 2).toFixed(2)} pts cada una. Si solo 1 acierta → ${points.exact * n} pts.`],
+                ['↔️', 'Diferencia exacta', points.diff, 'diff', 'Aciertas la diferencia y el ganador, pero NO el marcador exacto. Los que aciertan el resultado exacto NO compiten por este pool.',
+                  `Pool = ${points.diff} pts × ${n} jugadores = ${points.diff * n} pts. Si 3 aciertan diferencia (sin contar exactos) → ${(points.diff * n / 3).toFixed(2)} pts cada una.`],
+                ['✅', 'Ganador / Empate', points.sign, '1X2', 'Aciertas el signo (1, X o 2), pero NO la diferencia ni el exacto. Los que aciertan exacto o diferencia NO compiten por este pool.',
+                  `Pool = ${points.sign} pts × ${n} jugadores = ${points.sign * n} pts. Si 5 aciertan solo el signo → ${(points.sign * n / 5).toFixed(2)} pts cada una.`],
+                ['⚽', 'Primer goleador', points.scorer, 'goleador', 'Aciertas quién marca el primer gol. Independiente del resultado — todos los acertantes compiten por este pool.',
+                  `Pool = ${points.scorer} pts × ${n} jugadores = ${points.scorer * n} pts. Si 2 aciertan el goleador → ${(points.scorer * n / 2).toFixed(2)} pts cada una.`],
+                ['🕐', 'Tramo del primer gol', points.minute, 'tramo', 'Aciertas el tramo de minutos del primer gol. Independiente del resultado — todos los acertantes compiten por este pool.',
+                  `Pool = ${points.minute} pts × ${n} jugadores = ${points.minute * n} pts. Si 4 aciertan el tramo → ${(points.minute * n / 4).toFixed(2)} pts cada una.`],
+              ].map(([emoji, label, pts, key, desc, example]) => (
+                <div key={key} style={{ marginBottom:16, paddingBottom:16, borderBottom:'1px solid var(--border)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                    <span style={{ fontSize:14, fontWeight:600 }}>{emoji} {label}</span>
+                    <span style={{ fontSize:11, color:'var(--text3)' }}>Pool: <strong style={{ color:'var(--accent)' }}>{pts} × {n} = {pts * n} pts</strong></span>
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--text3)', marginBottom:6, lineHeight:1.5 }}>{desc}</div>
+                  <div style={{ fontSize:11, background:'var(--bg3)', borderRadius:7, padding:'6px 10px', color:'var(--text3)' }}>
+                    <strong style={{ color:'var(--text)' }}>Ej. liga de {n}:</strong> {example}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background:'var(--bg3)', borderRadius:10, padding:14, fontSize:12, color:'var(--text3)' }}>
+              <strong style={{ color:'var(--text)' }}>⚠️ Importante:</strong> Si nadie acierta un concepto, el pool de ese concepto se queda a 0 — nadie se lleva nada. Los puntos con decimales se redondean a 2 decimales.
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
