@@ -339,28 +339,47 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {otherBets.map(b => {
                 const name = allProfiles[b.user_id] || '?'
-                let pts = null
+                let pts = null, bd = null
                 if (hasResult) {
                   if (points.advanced && allBets?.length) {
                     const allIncl = [...(allBets || []), ...(myBet ? [myBet] : [])].filter((x, i, arr) => arr.findIndex(y => y.user_id === x.user_id) === i)
                     const aMap = getAdvancedMap(allIncl)
                     pts = aMap?.[b.user_id]?.total ?? 0
+                    bd = aMap?.[b.user_id]?.breakdown ?? null
                   } else {
                     pts = calcPoints(b, partido, points)
+                    bd = calcPointsBreakdown(b, partido, points)
                   }
                 }
+                const bdLabel = () => {
+                  if (!bd) return null
+                  const parts = []
+                  if (bd.result > 0) {
+                    if (bd.resultType === 'exact') parts.push(`🎯 +${bd.result}`)
+                    else if (bd.resultType === 'diff') parts.push(`↔️ +${bd.result}`)
+                    else parts.push(`✅ +${bd.result}`)
+                  }
+                  if (bd.scorer > 0) parts.push(`⚽ +${bd.scorer}`)
+                  if (bd.minute > 0) parts.push(`🕐 +${bd.minute}`)
+                  return parts.join('  ')
+                }
                 return (
-                  <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', borderRadius: 8, padding: '7px 10px', fontSize: 13 }}>
-                    <div>
-                      <span style={{ fontWeight: 500 }}>{name}</span>
-                      <span style={{ color: 'var(--text3)', marginLeft: 8 }}>{b.home_goals}–{b.away_goals}</span>
-                      {b.scorer && <span style={{ color: 'var(--text3)', marginLeft: 6, fontSize: 11 }}>⚽ {b.scorer}</span>}
-                      {b.minute && <span style={{ color: 'var(--text3)', marginLeft: 6, fontSize: 11 }}>🕐 {b.minute}</span>}
+                  <div key={b.id} style={{ background: 'var(--bg3)', borderRadius: 8, padding: '7px 10px', fontSize: 13 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontWeight: 500 }}>{name}</span>
+                        <span style={{ color: 'var(--text3)', marginLeft: 8 }}>{b.home_goals}–{b.away_goals}</span>
+                        {b.scorer && <span style={{ color: 'var(--text3)', marginLeft: 6, fontSize: 11 }}>⚽ {b.scorer}</span>}
+                        {b.minute && <span style={{ color: 'var(--text3)', marginLeft: 6, fontSize: 11 }}>🕐 {b.minute}</span>}
+                      </div>
+                      {pts !== null && (
+                        <span style={{ fontFamily: 'var(--font-d)', fontSize: 16, color: pts > 0 ? 'var(--green)' : 'var(--text3)', minWidth: 40, textAlign: 'right' }}>
+                          +{pts}
+                        </span>
+                      )}
                     </div>
-                    {pts !== null && (
-                      <span style={{ fontFamily: 'var(--font-d)', fontSize: 16, color: pts > 0 ? 'var(--green)' : 'var(--text3)', minWidth: 40, textAlign: 'right' }}>
-                        +{pts}
-                      </span>
+                    {bdLabel() && (
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{bdLabel()}</div>
                     )}
                   </div>
                 )
