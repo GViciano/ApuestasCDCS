@@ -316,12 +316,12 @@ function PuntosModal({ points, onClose }) {
 
             <div style={section}>
               {[
-                ['🎯', 'Resultado exacto', points.exact, 'exacto', 'Aciertas el marcador exacto. Tienes acceso al pool completo del resultado exacto.',
-                  `Pool = ${points.exact} pts × ${n} jugadores = ${points.exact * n} pts. Si 2 personas aciertan → ${(points.exact * n / 2).toFixed(2)} pts cada una. Si solo 1 acierta → ${points.exact * n} pts.`],
-                ['↔️', 'Diferencia exacta', points.diff, 'diff', 'Aciertas la diferencia y el ganador, pero NO el marcador exacto. El pool se calcula solo sobre los jugadores que NO acertaron el resultado exacto, para evitar que alguien con diferencia gane más que alguien con exacto.',
-                  `Si 2 acertaron exacto: Pool = ${points.diff} pts × (${n}-2 jugadores) = ${points.diff * (n-2)} pts. Si 1 acierta diferencia → ${points.diff * (n-2)} pts. Si 2 aciertan → ${(points.diff * (n-2) / 2).toFixed(2)} pts cada uno.`],
-                ['✅', 'Ganador / Empate', points.sign, '1X2', 'Aciertas el signo (1, X o 2), pero NO la diferencia ni el exacto. El pool se calcula solo sobre los jugadores que no acertaron exacto ni diferencia.',
-                  `Si 2 acertaron exacto y 1 diferencia: Pool = ${points.sign} pts × (${n}-3 jugadores) = ${points.sign * (n-3)} pts. Si 2 aciertan 1X2 → ${(points.sign * (n-3) / 2).toFixed(2)} pts cada uno.`],
+                ['🎯', 'Resultado exacto', points.exact, 'exacto', 'Aciertas el marcador exacto. Entras en los 3 pools: exacto + diferencia + 1X2.',
+                  `Pools: exacto=${points.exact*n} + diff=${points.diff*n} + 1X2=${points.sign*n}. Si solo 1 acierta exacto → ${(points.exact*n + points.diff*n + points.sign*n).toFixed(2)} pts.`],
+                ['↔️', 'Diferencia exacta', points.diff, 'diff', 'Aciertas la diferencia y el ganador, pero NO el marcador exacto. Entras en 2 pools: diferencia + 1X2. Los que aciertan exacto también están en estos pools.',
+                  `Pool diff=${points.diff*n} repartido entre exactos+diffs. Pool 1X2=${points.sign*n} repartido entre exactos+diffs+1X2s.`],
+                ['✅', 'Ganador / Empate', points.sign, '1X2', 'Aciertas el signo (1, X o 2). Entras en 1 pool: 1X2. Los que aciertan exacto o diferencia también están en este pool.',
+                  `Pool 1X2=${points.sign*n} pts repartido entre TODOS los que aciertan el signo (incluidos exactos y diffs). Si 4 de 6 aciertan el signo → ${(points.sign*n/4).toFixed(2)} pts cada uno.`],
                 ['⚽', 'Primer goleador', points.scorer, 'goleador', 'Aciertas quién marca el primer gol. Independiente del resultado — todos los acertantes compiten por este pool.',
                   `Pool = ${points.scorer} pts × ${n} jugadores = ${points.scorer * n} pts. Si 2 aciertan el goleador → ${(points.scorer * n / 2).toFixed(2)} pts cada una.`],
                 ['🕐', 'Tramo del primer gol', points.minute, 'tramo', 'Aciertas el tramo de minutos del primer gol. Independiente del resultado — todos los acertantes compiten por este pool.',
