@@ -123,9 +123,9 @@ export function calcAdvancedPoints(bets, result, basePts, nPlayers) {
   })
 
   // Calculate pool and per-player points for each concept
-  const poolExacto  = basePts.exact * nPlayers
-  const poolDiff    = basePts.diff  * nPlayers
-  const pool1x2     = basePts.sign  * nPlayers
+  const poolExacto  = basePts.exact  * nPlayers
+  const poolDiff    = basePts.diff   * (nPlayers - exacto.length)
+  const pool1x2     = basePts.sign   * (nPlayers - exacto.length - diff.length)
   const poolGol     = basePts.scorer * nPlayers
   const poolTramo   = basePts.minute * nPlayers
 
