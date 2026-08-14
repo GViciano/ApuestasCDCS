@@ -249,6 +249,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
             <span style={{ color: 'var(--text3)' }}>
               Tu apuesta: <strong style={{ color: 'var(--text)' }}>{myBet.home_goals}–{myBet.away_goals}</strong>
               {myBet.scorer && <> · {myBet.scorer}</>}
+              {myBet.minute && <> · 🕐 {myBet.minute}</>}
             </span>
             <span style={{ fontFamily: 'var(--font-d)', fontSize: 20, color: earned > 0 ? 'var(--green)' : 'var(--text3)' }}>
               {earned !== null ? (earned > 0 ? `+${earned}` : '0') : '—'} pts
