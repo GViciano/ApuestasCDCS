@@ -18,6 +18,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showChangeName, setShowChangeName] = useState(false)
   const [showPuntos, setShowPuntos] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
   const [points, setPoints] = useState(DEF_PTS)
   const [jornadas, setJornadas] = useState([])
   const [activeJornadaId, setActiveJornadaId] = useState(null)
@@ -155,6 +156,10 @@ export default function App() {
               style={{ padding:'12px 20px', border:'none', background:'transparent', color:'var(--text3)', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left' }}>
               ✏️ Cambiar nombre
             </button>
+            <button onClick={() => { setShowChangePassword(true); setMenuOpen(false) }}
+              style={{ padding:'12px 20px', border:'none', background:'transparent', color:'var(--text3)', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left' }}>
+              🔑 Cambiar contraseña
+            </button>
             <button onClick={() => { switchLiga(); setMenuOpen(false) }}
               style={{ padding:'12px 20px', border:'none', background:'transparent', color:'var(--text3)', fontSize:13, cursor:'pointer', fontFamily:'var(--font-b)', textAlign:'left' }}>
               🔄 Cambiar de liga
@@ -166,6 +171,10 @@ export default function App() {
       {/* Change name modal */}
       {showPuntos && (
         <PuntosModal points={points} onClose={() => setShowPuntos(false)} />
+      )}
+
+      {showChangePassword && (
+        <ChangePasswordModal userId={user.id} onClose={() => setShowChangePassword(false)} />
       )}
 
       {showChangeName && (
@@ -256,7 +265,7 @@ function ChangeNameModal({ currentName, userId, onSaved, onClose }) {
 
 function PuntosModal({ points, onClose }) {
   const adv = points.advanced
-  const n = 8 // example league size
+  const n = 9 // example league size
 
   const overlay = { position:'fixed', top:0, left:0, width:'100vw', height:'100vh', zIndex:300, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'20px 16px', overflowY:'auto' }
   const card = { background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:16, padding:24, width:'100%', maxWidth:480, marginTop: 20, marginBottom: 20 }
@@ -345,6 +354,63 @@ function PuntosModal({ points, onClose }) {
             </div>
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+function ChangePasswordModal({ userId, onClose }) {
+  const [current, setCurrent] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+
+  const save = async () => {
+    setError('')
+    if (!current.trim() || !newPwd.trim() || !confirm.trim()) { setError('Rellena todos los campos'); return }
+    if (newPwd !== confirm) { setError('Las contraseñas no coinciden'); return }
+    if (newPwd.length < 4) { setError('La contraseña debe tener al menos 4 caracteres'); return }
+    setSaving(true)
+    // Verify current password
+    const { data: profile } = await supabase.from('profiles').select('password, password_hash').eq('id', userId).single()
+    const stored = profile?.password || profile?.password_hash || ''
+    if (stored && stored !== current) { setError('La contraseña actual no es correcta'); setSaving(false); return }
+    await supabase.from('profiles').update({ password: newPwd, password_hash: newPwd }).eq('id', userId)
+    setSaving(false)
+    setDone(true)
+    setTimeout(onClose, 1500)
+  }
+
+  const inp = { width:'100%', padding:'10px 12px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--text)', fontSize:14, fontFamily:'var(--font-b)', outline:'none', boxSizing:'border-box', marginBottom:12 }
+
+  return (
+    <div style={{ position:'fixed', top:0, left:0, width:'100vw', height:'100vh', zIndex:300, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+      onClick={onClose}>
+      <div style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:16, padding:28, width:'100%', maxWidth:340 }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight:600, fontSize:16, marginBottom:16 }}>🔑 Cambiar contraseña</div>
+        {error && <div style={{ color:'var(--red)', fontSize:13, marginBottom:10 }}>{error}</div>}
+        {done
+          ? <div style={{ color:'var(--green)', textAlign:'center', padding:20 }}>✓ Contraseña actualizada</div>
+          : <>
+              <input type="password" placeholder="Contraseña actual" value={current} onChange={e => setCurrent(e.target.value)} style={inp} />
+              <input type="password" placeholder="Nueva contraseña" value={newPwd} onChange={e => setNewPwd(e.target.value)} style={inp} />
+              <input type="password" placeholder="Confirmar nueva contraseña" value={confirm} onChange={e => setConfirm(e.target.value)}
+                style={{ ...inp, marginBottom:16 }} onKeyDown={e => e.key==='Enter' && save()} />
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={onClose}
+                  style={{ flex:1, padding:10, borderRadius:9, border:'1px solid var(--border)', background:'transparent', color:'var(--text2)', fontSize:14, cursor:'pointer', fontFamily:'var(--font-b)' }}>
+                  Cancelar
+                </button>
+                <button onClick={save} disabled={saving}
+                  style={{ flex:1, padding:10, borderRadius:9, border:'none', background:'var(--accent)', color:'#000', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'var(--font-b)' }}>
+                  {saving ? 'Guardando…' : 'Guardar'}
+                </button>
+              </div>
+            </>
+        }
       </div>
     </div>
   )

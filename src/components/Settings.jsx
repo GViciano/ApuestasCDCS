@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
 import { LALIGA_TEAMS } from '../data.js'
 import { invalidateLogoCache } from './Shield.jsx'
+import DatePicker from './DatePicker.jsx'
 
 const btn = (color = 'var(--accent)') => ({
   padding: '8px 14px', borderRadius: 8, border: 'none', background: color, color: color === 'var(--accent)' ? '#000' : '#fff',
@@ -367,8 +368,7 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Fecha</div>
-                <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
-                  style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
+                <DatePicker value={newDate} onChange={setNewDate} />
               </div>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Hora</div>
@@ -477,8 +477,7 @@ function PartidoRow({ partido, onDelete, onDateChange, onUpdate, myJornadas, tea
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>Fecha</div>
-              <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                style={{ ...inp, width: '100%', boxSizing: 'border-box', fontSize: 13 }} />
+              <DatePicker value={editDate} onChange={setEditDate} />
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>Hora</div>

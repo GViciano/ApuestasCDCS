@@ -317,6 +317,36 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
         ? <div style={{ color:'var(--text3)', textAlign:'center', padding:40 }}>Sin datos aún</div>
         : (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {/* My position pinned at top if >10 players */}
+            {scores.length > 10 && (() => {
+              const myIdx = scores.findIndex(sc => currentUser && sc.username === currentUser.username)
+              if (myIdx <= 2) return null // already visible at top
+              const sc = scores[myIdx]
+              if (!sc) return null
+              return (
+                <div>
+                  <div style={{ fontSize:11, color:'var(--text3)', marginBottom:6, textTransform:'uppercase', letterSpacing:.7 }}>Tu posición</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'36px 1fr auto', gap:12, alignItems:'center', background:'rgba(99,179,237,.12)', border:'1px solid rgba(99,179,237,.5)', borderRadius:10, padding:'12px 16px', marginBottom:4 }}>
+                    <div style={{ fontFamily:'var(--font-d)', fontSize:24, color:'var(--text3)', textAlign:'center' }}>{myIdx+1}</div>
+                    <div>
+                      <div style={{ fontWeight:500, fontSize:14 }}>{sc.displayName}</div>
+                      <div style={{ fontSize:11, color:'var(--text3)', marginTop:3, display:'flex', gap:8, flexWrap:'wrap' }}>
+                        {sc.exactN>0 && <span>🎯 {sc.exactN}× <span style={{ color:'var(--accent)' }}>+{sc.exactPts}pts</span></span>}
+                        {sc.diffN>0 && <span>↔️ {sc.diffN}× <span style={{ color:'var(--accent)' }}>+{sc.diffPts}pts</span></span>}
+                        {sc.signN>0 && <span>✅ {sc.signN}× <span style={{ color:'var(--accent)' }}>+{sc.signPts}pts</span></span>}
+                        {sc.scorerN>0 && <span>⚽ {sc.scorerN}× <span style={{ color:'var(--accent)' }}>+{sc.scorerPts}pts</span></span>}
+                        {sc.minuteN>0 && <span>🕐 {sc.minuteN}× <span style={{ color:'var(--accent)' }}>+{sc.minutePts}pts</span></span>}
+                      </div>
+                    </div>
+                    <div style={{ textAlign:'right' }}>
+                      <div style={{ fontFamily:'var(--font-d)', fontSize:30, color:'var(--text)' }}>{sc.total}</div>
+                      <div style={{ fontSize:11, color:'var(--text3)' }}>pts</div>
+                    </div>
+                  </div>
+                  <div style={{ height:1, background:'var(--border)', margin:'8px 0' }} />
+                </div>
+              )
+            })()}
             {scores.map((sc, i) => {
               const isMe = currentUser && sc.username === currentUser.username
               return (
