@@ -225,8 +225,10 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
     if (!newJLabel.trim()) return
     if (!ligaId) { alert('Error: ligaId es null. Valor: ' + ligaId); return }
     setCreatingJ(true)
-    const { count } = await supabase.from('liga_jornadas').select('*', { count: 'exact', head: true }).eq('liga_id', ligaId)
-    const num = (count || 0) + 1
+    // Get max numero for this liga to avoid constraint violations
+    const { data: existing } = await supabase.from('liga_jornadas')
+      .select('numero').eq('liga_id', ligaId).order('numero', { ascending: false }).limit(1)
+    const num = existing?.length > 0 ? existing[0].numero + 1 : 1
     const { data, error } = await supabase.from('liga_jornadas').insert({ numero: num, label: newJLabel.trim(), active: false, liga_id: ligaId }).select().single()
     if (error) { alert('Error Supabase: ' + error.message); setCreatingJ(false); return }
     setCreatingJ(false)
