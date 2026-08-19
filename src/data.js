@@ -149,16 +149,26 @@ export function calcAdvancedPoints(bets, result, basePts, nPlayers) {
     let pts = 0, breakdown = { result: 0, resultType: null, scorer: 0, minute: 0 }
 
     if (exacto.includes(uid)) {
-      const r = Math.round((ptsExacto + ptsDiff + pts1x2) * 100) / 100
-      pts += r; breakdown.result = r; breakdown.resultType = 'exact'
+      const rExact = Math.round(ptsExacto * 100) / 100
+      const rDiff  = Math.round(ptsDiff   * 100) / 100
+      const r1x2   = Math.round(pts1x2    * 100) / 100
+      const total_r = Math.round((rExact + rDiff + r1x2) * 100) / 100
+      pts += total_r
+      breakdown.result = total_r; breakdown.resultType = 'exact'
+      breakdown.exactPts = rExact; breakdown.diffPts = rDiff; breakdown.signPts = r1x2
     } else if (diff.includes(uid)) {
-      const r = Math.round((ptsDiff + pts1x2) * 100) / 100
-      pts += r; breakdown.result = r; breakdown.resultType = 'diff'
+      const rDiff = Math.round(ptsDiff * 100) / 100
+      const r1x2  = Math.round(pts1x2  * 100) / 100
+      const total_r = Math.round((rDiff + r1x2) * 100) / 100
+      pts += total_r
+      breakdown.result = total_r; breakdown.resultType = 'diff'
+      breakdown.diffPts = rDiff; breakdown.signPts = r1x2
     } else if (sign1x2.includes(uid)) {
-      const r = Math.round(pts1x2 * 100) / 100
-      pts += r; breakdown.result = r; breakdown.resultType = 'sign'
+      const r1x2 = Math.round(pts1x2 * 100) / 100
+      pts += r1x2; breakdown.result = r1x2; breakdown.resultType = 'sign'
+      breakdown.signPts = r1x2
     }
-    if (goleador.includes(uid)) { const g = Math.round(ptsGol * 100) / 100; pts += g; breakdown.scorer = g }
+    if (goleador.includes(uid)) { const g = Math.round(ptsGol   * 100) / 100; pts += g; breakdown.scorer = g }
     if (tramo.includes(uid))    { const t = Math.round(ptsTramo * 100) / 100; pts += t; breakdown.minute = t }
 
     result_map[uid] = { total: Math.round(pts * 100) / 100, breakdown }

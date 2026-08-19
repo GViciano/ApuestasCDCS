@@ -81,9 +81,19 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
           if (!adv) return
           const bd = adv.breakdown
           total += adv.total
-          if (bd.resultType === 'exact') { exactN++; exactPts += bd.result }
-          else if (bd.resultType === 'diff') { diffN++; diffPts += bd.result }
-          else if (bd.resultType === 'sign') { signN++; signPts += bd.result }
+          if (bd.resultType === 'exact') {
+            exactN++
+            exactPts  += bd.exactPts || 0
+            diffPts   += bd.diffPts  || 0
+            signPts   += bd.signPts  || 0
+          } else if (bd.resultType === 'diff') {
+            diffN++
+            diffPts += bd.diffPts || 0
+            signPts += bd.signPts || 0
+          } else if (bd.resultType === 'sign') {
+            signN++
+            signPts += bd.signPts || 0
+          }
           if (bd.scorer > 0) { scorerN++; scorerPts += bd.scorer }
           if (bd.minute > 0) { minuteN++; minutePts += bd.minute }
         } else {
@@ -331,11 +341,11 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
                     <div>
                       <div style={{ fontWeight:500, fontSize:14 }}>{sc.displayName}</div>
                       <div style={{ fontSize:11, color:'var(--text3)', marginTop:3, display:'flex', gap:8, flexWrap:'wrap' }}>
-                        {sc.exactN>0 && <span>🎯 {sc.exactN}× <span style={{ color:'var(--accent)' }}>+{sc.exactPts}pts</span></span>}
-                        {sc.diffN>0 && <span>↔️ {sc.diffN}× <span style={{ color:'var(--accent)' }}>+{sc.diffPts}pts</span></span>}
-                        {sc.signN>0 && <span>✅ {sc.signN}× <span style={{ color:'var(--accent)' }}>+{sc.signPts}pts</span></span>}
-                        {sc.scorerN>0 && <span>⚽ {sc.scorerN}× <span style={{ color:'var(--accent)' }}>+{sc.scorerPts}pts</span></span>}
-                        {sc.minuteN>0 && <span>🕐 {sc.minuteN}× <span style={{ color:'var(--accent)' }}>+{sc.minutePts}pts</span></span>}
+                        {sc.exactN>0 && <span title="Resultado exacto" style={{cursor:'help'}}>🎯 {sc.exactN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.exactPts*100)/100}pts</span></span>}
+                        {sc.diffN>0 && <span title="Diferencia de goles exacta" style={{cursor:'help'}}>↔️ {sc.diffN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.diffPts*100)/100}pts</span></span>}
+                        {sc.signN>0 && <span title="Ganador / Empate (1X2)" style={{cursor:'help'}}>✅ {sc.signN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.signPts*100)/100}pts</span></span>}
+                        {sc.scorerN>0 && <span title="Primer goleador" style={{cursor:'help'}}>⚽ {sc.scorerN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.scorerPts*100)/100}pts</span></span>}
+                        {sc.minuteN>0 && <span title="Tramo del primer gol" style={{cursor:'help'}}>🕐 {sc.minuteN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.minutePts*100)/100}pts</span></span>}
                       </div>
                     </div>
                     <div style={{ textAlign:'right' }}>
@@ -357,11 +367,11 @@ export default function Ranking({ points, currentUser, jornadas, ligaId }) {
                   <div>
                     <div style={{ fontWeight:500, fontSize:14 }}>{sc.displayName}</div>
                     <div style={{ fontSize:11, color:'var(--text3)', marginTop:3, display:'flex', gap:8, flexWrap:'wrap' }}>
-                      {sc.exactN>0 && <span>🎯 {sc.exactN}× <span style={{ color:'var(--accent)' }}>+{sc.exactPts}pts</span></span>}
-                      {sc.diffN>0 && <span>↔️ {sc.diffN}× <span style={{ color:'var(--accent)' }}>+{sc.diffPts}pts</span></span>}
-                      {sc.signN>0 && <span>✅ {sc.signN}× <span style={{ color:'var(--accent)' }}>+{sc.signPts}pts</span></span>}
-                      {sc.scorerN>0 && <span>⚽ {sc.scorerN}× <span style={{ color:'var(--accent)' }}>+{sc.scorerPts}pts</span></span>}
-                      {sc.minuteN>0 && <span>🕐 {sc.minuteN}× <span style={{ color:'var(--accent)' }}>+{sc.minutePts}pts</span></span>}
+                      {sc.exactN>0 && <span title="Resultado exacto" style={{cursor:'help'}}>🎯 {sc.exactN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.exactPts*100)/100}pts</span></span>}
+                      {sc.diffN>0 && <span title="Diferencia de goles exacta" style={{cursor:'help'}}>↔️ {sc.diffN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.diffPts*100)/100}pts</span></span>}
+                      {sc.signN>0 && <span title="Ganador / Empate (1X2)" style={{cursor:'help'}}>✅ {sc.signN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.signPts*100)/100}pts</span></span>}
+                      {sc.scorerN>0 && <span title="Primer goleador" style={{cursor:'help'}}>⚽ {sc.scorerN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.scorerPts*100)/100}pts</span></span>}
+                      {sc.minuteN>0 && <span title="Tramo del primer gol" style={{cursor:'help'}}>🕐 {sc.minuteN}× <span style={{ color:'var(--accent)' }}>+{Math.round(sc.minutePts*100)/100}pts</span></span>}
                     </div>
                   </div>
                   <div style={{ textAlign:'right' }}>

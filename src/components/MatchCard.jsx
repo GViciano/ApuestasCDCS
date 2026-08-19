@@ -163,17 +163,32 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
   })()
   const tl = timeLeft(partido.match_date)
 
-  const resultLabel = () => {
-    if (!breakdown) return null
+  const resultLabel = (bd) => {
+    if (!bd) return null
+    const isAdv = points.advanced
+    const tip = (text, title) => (
+      <span key={title} title={title} style={{ cursor: 'help' }}>{text}</span>
+    )
     const parts = []
-    if (breakdown.result > 0) {
-      if (breakdown.resultType === 'exact') parts.push(`🎯 +${breakdown.result}`)
-      else if (breakdown.resultType === 'diff') parts.push(`↔️ +${breakdown.result}`)
-      else parts.push(`✅ +${breakdown.result}`)
+    if (bd.result > 0) {
+      if (isAdv) {
+        if (bd.exactPts > 0) parts.push(tip(`🎯 +${bd.exactPts}`, 'Resultado exacto'))
+        if (bd.diffPts  > 0) parts.push(tip(`↔️ +${bd.diffPts}`,  'Diferencia de goles exacta'))
+        if (bd.signPts  > 0) parts.push(tip(`✅ +${bd.signPts}`,  'Ganador / Empate (1X2)'))
+      } else {
+        if (bd.resultType === 'exact') parts.push(tip(`🎯 +${bd.result}`, 'Resultado exacto'))
+        else if (bd.resultType === 'diff') parts.push(tip(`↔️ +${bd.result}`, 'Diferencia de goles exacta'))
+        else parts.push(tip(`✅ +${bd.result}`, 'Ganador / Empate (1X2)'))
+      }
     }
-    if (breakdown.scorer > 0) parts.push(`⚽ +${breakdown.scorer}`)
-    if (breakdown.minute > 0) parts.push(`🕐 +${breakdown.minute}`)
-    return parts.join('  ')
+    if (bd.scorer > 0) parts.push(tip(`⚽ +${bd.scorer}`, 'Primer goleador'))
+    if (bd.minute > 0) parts.push(tip(`🕐 +${bd.minute}`, 'Tramo del primer gol'))
+    if (!parts.length) return null
+    return (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+        {parts.map((p, i) => <span key={i}>{p}</span>)}
+      </div>
+    )
   }
 
   const PlayerSelect = ({ val, onChange, disabled }) => (
@@ -255,7 +270,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
               {earned !== null ? (earned > 0 ? `+${earned}` : '0') : '—'} pts
             </span>
           </div>
-          {breakdown && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{resultLabel()}</div>}
+          {breakdown && resultLabel(breakdown)}
         </div>
       )}
 
@@ -364,18 +379,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
                     bd = calcPointsBreakdown(b, partido, points)
                   }
                 }
-                const bdLabel = () => {
-                  if (!bd) return null
-                  const parts = []
-                  if (bd.result > 0) {
-                    if (bd.resultType === 'exact') parts.push(`🎯 +${bd.result}`)
-                    else if (bd.resultType === 'diff') parts.push(`↔️ +${bd.result}`)
-                    else parts.push(`✅ +${bd.result}`)
-                  }
-                  if (bd.scorer > 0) parts.push(`⚽ +${bd.scorer}`)
-                  if (bd.minute > 0) parts.push(`🕐 +${bd.minute}`)
-                  return parts.join('  ')
-                }
+                const bdLabel = () => resultLabel(bd)
                 return (
                   <div key={b.id} style={{ background: 'var(--bg3)', borderRadius: 8, padding: '7px 10px', fontSize: 13 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -391,9 +395,7 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
                         </span>
                       )}
                     </div>
-                    {bdLabel() && (
-                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{bdLabel()}</div>
-                    )}
+                    {bd && bdLabel()}
                   </div>
                 )
               })}
