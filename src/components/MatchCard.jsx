@@ -166,27 +166,34 @@ export default function MatchCard({ partido, jornadaLabel, ligaId, user, myBet, 
   const resultLabel = (bd) => {
     if (!bd) return null
     const isAdv = points.advanced
-    const tip = (text, title) => (
-      <span key={title} title={title} style={{ cursor: 'help' }}>{text}</span>
-    )
     const parts = []
-    if (bd.result > 0) {
+
+    if (bd.result > 0 || bd.exactPts > 0 || bd.diffPts > 0 || bd.signPts > 0) {
       if (isAdv) {
-        if (bd.exactPts > 0) parts.push(tip(`🎯 +${bd.exactPts}`, 'Resultado exacto'))
-        if (bd.diffPts  > 0) parts.push(tip(`↔️ +${bd.diffPts}`,  'Diferencia de goles exacta'))
-        if (bd.signPts  > 0) parts.push(tip(`✅ +${bd.signPts}`,  'Ganador / Empate (1X2)'))
+        if ((bd.exactPts ?? 0) > 0) parts.push({ icon: '🎯', pts: bd.exactPts, label: 'Exacto' })
+        if ((bd.diffPts  ?? 0) > 0) parts.push({ icon: '↔️', pts: bd.diffPts,  label: 'Diferencia' })
+        if ((bd.signPts  ?? 0) > 0) parts.push({ icon: '✅', pts: bd.signPts,  label: '1X2' })
+        // Fallback: si no hay desglose detallado (ej. datos antiguos), muestra el total
+        if (!((bd.exactPts ?? 0) + (bd.diffPts ?? 0) + (bd.signPts ?? 0)) && bd.result > 0) {
+          if (bd.resultType === 'exact') parts.push({ icon: '🎯', pts: bd.result, label: 'Exacto' })
+          else if (bd.resultType === 'diff') parts.push({ icon: '↔️', pts: bd.result, label: 'Diferencia' })
+          else parts.push({ icon: '✅', pts: bd.result, label: '1X2' })
+        }
       } else {
-        if (bd.resultType === 'exact') parts.push(tip(`🎯 +${bd.result}`, 'Resultado exacto'))
-        else if (bd.resultType === 'diff') parts.push(tip(`↔️ +${bd.result}`, 'Diferencia de goles exacta'))
-        else parts.push(tip(`✅ +${bd.result}`, 'Ganador / Empate (1X2)'))
+        if (bd.resultType === 'exact') parts.push({ icon: '🎯', pts: bd.result, label: 'Exacto' })
+        else if (bd.resultType === 'diff') parts.push({ icon: '↔️', pts: bd.result, label: 'Diferencia' })
+        else if (bd.result > 0) parts.push({ icon: '✅', pts: bd.result, label: '1X2' })
       }
     }
-    if (bd.scorer > 0) parts.push(tip(`⚽ +${bd.scorer}`, 'Primer goleador'))
-    if (bd.minute > 0) parts.push(tip(`🕐 +${bd.minute}`, 'Tramo del primer gol'))
+    if (bd.scorer > 0) parts.push({ icon: '⚽', pts: bd.scorer, label: 'Goleador' })
+    if (bd.minute > 0) parts.push({ icon: '🕐', pts: bd.minute, label: 'Tramo' })
+
     if (!parts.length) return null
     return (
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-        {parts.map((p, i) => <span key={i}>{p}</span>)}
+        {parts.map((p, i) => (
+          <span key={i}>{p.icon} <span style={{ color: 'var(--text2)' }}>{p.label}</span> <span style={{ color: 'var(--green)' }}>+{p.pts}</span></span>
+        ))}
       </div>
     )
   }
