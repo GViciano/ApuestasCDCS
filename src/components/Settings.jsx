@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase.js'
-import { LALIGA_TEAMS } from '../data.js'
+import { LALIGA_TEAMS, madridToISO, isoToMadrid } from '../data.js'
 import { invalidateLogoCache } from './Shield.jsx'
 import DatePicker from './DatePicker.jsx'
 
@@ -262,9 +262,8 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
     if (dp.length !== 3 || tp.length !== 2) return null
     let [d, m, y] = dp.map(Number)
     if (y < 100) y += 2000
-    const [h, min] = tp.map(Number)
-    const off = (m >= 3 && m <= 10) ? 2 : 1
-    return new Date(Date.UTC(y, m - 1, d, h - off, min)).toISOString()
+    const pad = n => String(n).padStart(2, '0')
+    return madridToISO(`${y}-${pad(m)}-${pad(d)}`, `${pad(tp[0])}:${pad(tp[1])}`)
   }
 
   const addPartido = async () => {
@@ -272,10 +271,7 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
     setAdding(true)
     let match_date = null
     if (newDate && newTime) {
-      const [y, m, d] = newDate.split('-').map(Number)
-      const [h, min] = newTime.split(':').map(Number)
-      const off = (m >= 3 && m <= 10) ? 2 : 1
-      match_date = new Date(Date.UTC(y, m - 1, d, h - off, min)).toISOString()
+      match_date = madridToISO(newDate, newTime)
     }
     await supabase.from('liga_partidos').insert({ jornada_id: addToJornadaId, home: newHome, away: newAway, match_date })
     setAdding(false)
@@ -389,24 +385,23 @@ function JornadasSection({ activeJornadaId, onUpdated, teams, ligaId }) {
 }
 
 function PartidoRow({ partido, onDelete, onDateChange, onUpdate, myJornadas, teams }) {
-  const existingDate = partido.match_date ? new Date(partido.match_date) : null
-  const toMadridDate = (d) => {
-    if (!d) return ''
-    return d.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' })
-      .split('/').reverse().join('-')
-  }
-  const toMadridTime = (d) => {
-    if (!d) return ''
-    return d.toLocaleTimeString('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hour12: false })
-  }
-
-  const [editDate, setEditDate] = useState(toMadridDate(existingDate))
-  const [editTime, setEditTime] = useState(toMadridTime(existingDate))
+  const initial = isoToMadrid(partido.match_date)
+  const [editDate, setEditDate] = useState(initial.date)
+  const [editTime, setEditTime] = useState(initial.time)
   const [editHome, setEditHome] = useState(partido.home)
   const [editAway, setEditAway] = useState(partido.away)
   const [editJornadaId, setEditJornadaId] = useState(partido.jornada_id)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Resincroniza el formulario con los datos guardados cada vez que se abre la edición
+  const openEdit = () => {
+    const cur = isoToMadrid(partido.match_date)
+    setEditDate(cur.date); setEditTime(cur.time)
+    setEditHome(partido.home); setEditAway(partido.away)
+    setEditJornadaId(partido.jornada_id)
+    setEditing(true)
+  }
 
   const currentDate = partido.match_date
     ? new Date(partido.match_date).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Madrid' })
@@ -414,20 +409,19 @@ function PartidoRow({ partido, onDelete, onDateChange, onUpdate, myJornadas, tea
 
   const handleSave = async () => {
     if (!editHome || !editAway || editHome === editAway) return
+    if ((editDate && !editTime) || (!editDate && editTime)) {
+      alert('Indica fecha y hora (las dos).'); return
+    }
     setSaving(true)
     let match_date = partido.match_date
-    if (editDate && editTime) {
-      const [y, m, d] = editDate.split('-').map(Number)
-      const [h, min] = editTime.split(':').map(Number)
-      const off = (m >= 3 && m <= 10) ? 2 : 1
-      match_date = new Date(Date.UTC(y, m - 1, d, h - off, min)).toISOString()
-    }
-    await supabase.from('liga_partidos').update({
+    if (editDate && editTime) match_date = madridToISO(editDate, editTime)
+    const { error } = await supabase.from('liga_partidos').update({
       home: editHome, away: editAway,
       jornada_id: editJornadaId,
       match_date,
     }).eq('id', partido.id)
     setSaving(false)
+    if (error) { alert('Error al guardar: ' + error.message); return }
     setEditing(false)
     onUpdate()
   }
@@ -445,7 +439,7 @@ function PartidoRow({ partido, onDelete, onDateChange, onUpdate, myJornadas, tea
           <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{currentDate}</div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setEditing(e => !e)}
+          <button onClick={() => (editing ? setEditing(false) : openEdit())}
             style={{ padding: '4px 8px', borderRadius: 6, border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, background: editing ? 'rgba(245,166,35,.1)' : 'none', color: editing ? 'var(--accent)' : 'var(--text2)', fontSize: 12, cursor: 'pointer' }}>
             ✏️
           </button>

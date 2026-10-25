@@ -24,15 +24,45 @@ export const MINUTE_RANGES = [
   { value: '76-90+',  label: "76-90+'" },
 ]
 
+
+// ── Zona horaria Europe/Madrid (maneja bien el cambio de hora) ──────────────
+function madridOffsetMs(ts) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Madrid', hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(ts))
+  const g = t => Number(parts.find(p => p.type === t).value)
+  const asUTC = Date.UTC(g('year'), g('month') - 1, g('day'), g('hour'), g('minute'))
+  return asUTC - Math.floor(ts / 60000) * 60000
+}
+
+// 'YYYY-MM-DD' + 'HH:MM' (hora de Madrid) -> ISO UTC
+export function madridToISO(dateStr, timeStr) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const [h, min] = timeStr.split(':').map(Number)
+  const naive = Date.UTC(y, m - 1, d, h, min)
+  const guess1 = naive - madridOffsetMs(naive)
+  const guess2 = naive - madridOffsetMs(guess1)
+  return new Date(guess2).toISOString()
+}
+
+// ISO UTC -> { date: 'YYYY-MM-DD', time: 'HH:MM' } en hora de Madrid
+export function isoToMadrid(iso) {
+  if (!iso) return { date: '', time: '' }
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Madrid', hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(iso))
+  const g = t => parts.find(p => p.type === t).value
+  return { date: `${g('year')}-${g('month')}-${g('day')}`, time: `${g('hour')}:${g('minute')}` }
+}
+
 // Madrid timezone parser
 function parseMadrid(iso) {
   if (!iso) return new Date(NaN)
   if (iso.includes('Z') || /[+-]\d\d:\d\d$/.test(iso)) return new Date(iso)
   const [datePart, timePart = '00:00'] = iso.split('T')
-  const [yr, mon, day] = datePart.split('-').map(Number)
-  const [hr, mn = 0] = timePart.split(':').map(Number)
-  const offsetHours = (mon >= 3 && mon <= 10) ? 2 : 1
-  return new Date(Date.UTC(yr, mon - 1, day, hr - offsetHours, mn, 0))
+  return new Date(madridToISO(datePart, timePart.slice(0, 5)))
 }
 
 export function fmtDate(iso) {
